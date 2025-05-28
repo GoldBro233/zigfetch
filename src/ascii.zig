@@ -12,6 +12,58 @@ pub const White = "\x1b[37m";
 
 pub fn selectAscii() void {}
 
+inline fn parseHexChar(c: u8) !u8 {
+    return switch (c) {
+        '0'...'9' => c - '0',
+        'a'...'f' => c - 'a' + 10,
+        'A'...'F' => c - 'A' + 10,
+        else => error.InvalidHexChar,
+    };
+}
+
+fn parseHexByte(s: []const u8) !u8 {
+    if (s.len != 2) return error.InvalidHexByteLength;
+
+    const hi = try parseHexChar(s[0]);
+    const lo = try parseHexChar(s[1]);
+
+    // Example: ff
+    // hi = 0b00001111 (15)
+    // lo = 0b00001111 (15)
+    //
+    // hi << 4 -> 0b11110000 (240)
+    //
+    // (hi << 4) | lo -> 0b11110000 | 0b00001111
+    // => 0b11111111 (255)
+
+    return (hi << 4) | lo;
+}
+
+/// Converts a hex color to rgb
+pub fn hexColorToRgb(color: []const u8) !struct { r: u8, g: u8, b: u8 } {
+    if (color.len < 6 or color.len > 7) return error.InvalidHexColorLength;
+
+    var start: usize = 0;
+
+    if (color[0] == '#') start = 1;
+
+    return .{
+        .r = try parseHexByte(color[start .. start + 2]),
+        .g = try parseHexByte(color[start + 2 .. start + 4]),
+        .b = try parseHexByte(color[start + 4 ..]),
+    };
+}
+
+test "parse #ffffff" {
+    const result = try hexColorToRgb("#ffffff");
+    try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
+}
+
+test "parse ffffff" {
+    const result = try hexColorToRgb("ffffff");
+    try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
+}
+
 pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u8)) !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
