@@ -41,7 +41,7 @@ $ zigfetch
 ### Configuration
 
 > [!IMPORTANT]
-> Currently, Zig does not have a built-in library for JSON validation via JSON schema, so it is very important to follow the pattern shown in the default configuration file ([config.json](https://github.com/utox39/zigfetch/blob/feat/user-config/config.json)) to avoid errors
+> Currently, Zig does not have a built-in library for JSON validation via JSON schema, so it is very important to follow the pattern shown in the default configuration file ([config.json](https://github.com/utox39/zigfetch/blob/main/config.json)) to avoid errors
 
 - Create the config folder
 
