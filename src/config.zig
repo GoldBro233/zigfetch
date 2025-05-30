@@ -25,7 +25,7 @@ pub const ModuleType = enum {
     disk,
     terminal,
     locale,
-    net,
+    net, // It must always be the last element of this array
 };
 
 pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.ArrayList(ModuleType) {
