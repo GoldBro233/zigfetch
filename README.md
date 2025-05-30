@@ -68,7 +68,7 @@ $ cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
 - [ ] Add GPU info for Linux
 - [ ] Add packages info for Linux
 - [x] Add user customization
-- [] Add support for Windows
+- [ ] Add support for Windows
 
 ## Contributing
 If you would like to contribute to this project just create a pull request which I will try to review as soon as possible.
