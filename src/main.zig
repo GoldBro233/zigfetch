@@ -31,7 +31,7 @@ pub fn main() !void {
         ascii.Yellow,
         username,
         ascii.Reset,
-        ascii.Magenta,
+        ascii.Yellow,
         hostname,
         ascii.Reset,
     }));
