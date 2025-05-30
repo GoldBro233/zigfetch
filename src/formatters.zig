@@ -42,9 +42,7 @@ pub fn getFormattedKernelInfo(allocator: std.mem.Allocator, key: []const u8, key
     defer allocator.free(kernel_info.kernel_name);
     defer allocator.free(kernel_info.kernel_release);
 
-    var buf: [1024]u8 = undefined;
-
-    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try kernel_info.toStr(&buf) });
+    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} {s}", .{ key_color, key, ascii.Reset, kernel_info.kernel_name, kernel_info.kernel_release });
 }
 
 pub fn getDefaultFormattedOsInfo(allocator: std.mem.Allocator) ![]u8 {
@@ -73,8 +71,7 @@ pub fn getDefaultFormattedUptimeInfo(allocator: std.mem.Allocator) ![]u8 {
 
 pub fn getFormattedUptimeInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
     const uptime = try detection.system.getSystemUptime();
-    var buf: [1024]u8 = undefined;
-    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try uptime.toStr(&buf) });
+    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {} days, {} hours, {} minutes ", .{ key_color, key, ascii.Reset, uptime.days, uptime.hours, uptime.minutes });
 }
 
 pub fn getDefaultFormattedPackagesInfo(allocator: std.mem.Allocator) ![]u8 {
@@ -108,10 +105,7 @@ pub fn getDefaultFormattedCpuInfo(allocator: std.mem.Allocator) ![]u8 {
 pub fn getFormattedCpuInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
     const cpu_info = try detection.hardware.getCpuInfo(allocator);
     defer allocator.free(cpu_info.cpu_name);
-
-    var buf: [1024]u8 = undefined;
-
-    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try cpu_info.toStr(&buf) });
+    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, cpu_info.cpu_name, cpu_info.cpu_cores, cpu_info.cpu_max_freq });
 }
 
 pub fn getDefaultFormattedGpuInfo(allocator: std.mem.Allocator) ![]u8 {
@@ -122,10 +116,7 @@ pub fn getFormattedGpuInfo(allocator: std.mem.Allocator, key: []const u8, key_co
     if (builtin.os.tag == .macos) {
         const gpu_info = try detection.hardware.getGpuInfo(allocator);
         defer allocator.free(gpu_info.gpu_name);
-
-        var buf: [1024]u8 = undefined;
-
-        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try gpu_info.toStr(&buf) });
+        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq });
     } else if (builtin.os.tag == .linux) {
         return try std.fmt.allocPrint(allocator, "{s}{s}:{s} WIP", .{ key_color, key, ascii.Reset });
     }
@@ -136,20 +127,8 @@ pub fn getDefaultFormattedRamInfo(allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getFormattedRamInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
-    var ram_info = detection.hardware.RamInfo{
-        .ram_size = 0.0,
-        .ram_usage = 0.0,
-        .ram_usage_percentage = 0,
-    };
-    if (builtin.os.tag == .macos) {
-        ram_info = try detection.hardware.getRamInfo();
-    } else if (builtin.os.tag == .linux) {
-        ram_info = try detection.hardware.getRamInfo(allocator);
-    }
-
-    var buf: [1024]u8 = undefined;
-
-    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try ram_info.toStr(&buf) });
+    const ram_info = if (builtin.os.tag == .macos) try detection.hardware.getRamInfo() else if (builtin.os.tag == .linux) try detection.hardware.getRamInfo(allocator);
+    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{ key_color, key, ascii.Reset, ram_info.ram_usage, ram_info.ram_size, ram_info.ram_usage_percentage });
 }
 
 pub fn getDefaultFormattedSwapInfo(allocator: std.mem.Allocator) ![]u8 {
@@ -157,10 +136,9 @@ pub fn getDefaultFormattedSwapInfo(allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getFormattedSwapInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
-    var buf: [1024]u8 = undefined;
     const swap_info = if (builtin.os.tag == .macos) try detection.hardware.getSwapInfo() else if (builtin.os.tag == .linux) try detection.hardware.getSwapInfo(allocator);
     if (swap_info) |s| {
-        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, try s.toStr(&buf) });
+        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{ key_color, key, ascii.Reset, s.swap_usage, s.swap_usage, s.swap_usage_percentage });
     } else {
         return try std.fmt.allocPrint(allocator, "{s}{s}:{s} Disabled", .{ key_color, key, ascii.Reset });
     }
@@ -172,10 +150,7 @@ pub fn getDefaultFormattedDiskInfo(allocator: std.mem.Allocator) ![]u8 {
 
 pub fn getFormattedDiskInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
     const disk_info = try detection.hardware.getDiskSize("/");
-
-    var buf: [1024]u8 = undefined;
-
-    return try std.fmt.allocPrint(allocator, "{s}{s}{s} {s}", .{ key_color, key, ascii.Reset, try disk_info.toStr(&buf) });
+    return try std.fmt.allocPrint(allocator, "{s}{s} ({s}):{s} {d:.2} / {d:.2} GB ({}%)", .{ key_color, key, disk_info.disk_path, ascii.Reset, disk_info.disk_usage, disk_info.disk_size, disk_info.disk_usage_percentage });
 }
 
 pub fn getDefaultFormattedTerminalNameInfo(allocator: std.mem.Allocator) ![]u8 {
@@ -195,14 +170,11 @@ pub fn getDefaultFormattedNetInfo(allocator: std.mem.Allocator) ![]u8 {
 pub fn getFormattedNetInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !std.ArrayList([]u8) {
     var formatted_net_info_list = std.ArrayList([]u8).init(allocator);
 
-    var buf: [1024]u8 = undefined;
-
     var net_info_list = try detection.network.getNetInfo(allocator);
     for (net_info_list.items) |n| {
-        try formatted_net_info_list.append(try std.fmt.allocPrint(allocator, "{s}{s} {s}{s}", .{ key_color, key, ascii.Reset, try n.toStr(&buf) }));
+        try formatted_net_info_list.append(try std.fmt.allocPrint(allocator, "{s}{s} ({s}):{s} {s}", .{ key_color, key, n.interface_name, ascii.Reset, n.ipv4_addr }));
         allocator.free(n.interface_name);
         allocator.free(n.ipv4_addr);
-        @memset(&buf, 0);
     }
     net_info_list.deinit();
 
