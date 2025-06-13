@@ -172,7 +172,6 @@ fn getCpuFreqAppleSilicon() !f64 {
     }
 }
 
-// TODO: test on intel machine
 pub fn getCpuFreqIntel() f64 {
     var freq: f64 = 0;
     var size: usize = @sizeOf(f64);
