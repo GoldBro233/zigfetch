@@ -138,7 +138,7 @@ pub fn getDefaultFormattedSwapInfo(allocator: std.mem.Allocator) ![]u8 {
 pub fn getFormattedSwapInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
     const swap_info = if (builtin.os.tag == .macos) try detection.hardware.getSwapInfo() else if (builtin.os.tag == .linux) try detection.hardware.getSwapInfo(allocator);
     if (swap_info) |s| {
-        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{ key_color, key, ascii.Reset, s.swap_usage, s.swap_usage, s.swap_usage_percentage });
+        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{ key_color, key, ascii.Reset, s.swap_usage, s.swap_size, s.swap_usage_percentage });
     } else {
         return try std.fmt.allocPrint(allocator, "{s}{s}:{s} Disabled", .{ key_color, key, ascii.Reset });
     }
