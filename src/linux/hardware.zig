@@ -1,12 +1,20 @@
 const std = @import("std");
 const c_unistd = @cImport(@cInclude("unistd.h"));
 const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
+const c_libpci = @cImport(@cInclude("pci/pci.h"));
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
     cpu_name: []u8,
     cpu_cores: i32,
     cpu_max_freq: f32,
+};
+
+/// Struct representing GPU informations
+pub const GpuInfo = struct {
+    gpu_name: []u8,
+    gpu_cores: i32,
+    gpu_freq: f64,
 };
 
 /// Struct representing RAM usage informations
@@ -74,6 +82,45 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
         .cpu_cores = @as(i32, @intCast(cpu_cores)),
         .cpu_max_freq = cpu_max_freq,
     };
+}
+
+pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
+    var gpu_info = GpuInfo{
+        .gpu_name = try allocator.dupe(u8, "Unknown"),
+        .gpu_cores = 0,
+        .gpu_freq = 0.0,
+    };
+
+    const display_controller = 0x03;
+
+    const pacc = c_libpci.pci_alloc();
+    defer c_libpci.pci_cleanup(pacc);
+    c_libpci.pci_init(pacc);
+    c_libpci.pci_scan_bus(pacc);
+
+    var devices = pacc.*.devices;
+    while (devices != null) : (devices = devices.*.next) {
+        // TODO: handle return value
+        _ = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+
+        if ((devices.*.device_class >> 8) == display_controller) {
+            var name_buffer: [256]u8 = undefined;
+
+            const name = c_libpci.pci_lookup_name(
+                pacc,
+                &name_buffer,
+                name_buffer.len,
+                c_libpci.PCI_LOOKUP_VENDOR | c_libpci.PCI_LOOKUP_DEVICE,
+                devices.*.vendor_id,
+                devices.*.device_id,
+            );
+
+            allocator.free(gpu_info.gpu_name);
+            gpu_info.gpu_name = try allocator.dupe(u8, std.mem.span(name));
+        }
+    }
+
+    return gpu_info;
 }
 
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
