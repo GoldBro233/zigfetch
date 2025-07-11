@@ -114,7 +114,7 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
                 devices.*.device_id,
             );
 
-            gpu_info_list.append(GpuInfo{
+            try gpu_info_list.append(GpuInfo{
                 .gpu_name = try allocator.dupe(u8, std.mem.span(name)),
                 .gpu_cores = 0,
                 .gpu_freq = 0.0,
