@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) void {
 
     if (target.result.os.tag == .linux) {
         exe.linkLibC();
+        exe.linkSystemLibrary("pci");
     }
 
     // This declares intent for the executable to be installed into the

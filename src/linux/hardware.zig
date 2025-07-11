@@ -1,12 +1,20 @@
 const std = @import("std");
 const c_unistd = @cImport(@cInclude("unistd.h"));
 const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
+const c_libpci = @cImport(@cInclude("pci/pci.h"));
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
     cpu_name: []u8,
     cpu_cores: i32,
     cpu_max_freq: f32,
+};
+
+/// Struct representing GPU informations
+pub const GpuInfo = struct {
+    gpu_name: []u8,
+    gpu_cores: i32,
+    gpu_freq: f64,
 };
 
 /// Struct representing RAM usage informations
@@ -74,6 +82,55 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
         .cpu_cores = @as(i32, @intCast(cpu_cores)),
         .cpu_max_freq = cpu_max_freq,
     };
+}
+
+pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
+    var gpu_info_list = std.ArrayList(GpuInfo).init(allocator);
+
+    const display_controller = 0x03;
+
+    const pacc = c_libpci.pci_alloc();
+    defer c_libpci.pci_cleanup(pacc);
+    c_libpci.pci_init(pacc);
+    c_libpci.pci_scan_bus(pacc);
+
+    var devices = pacc.*.devices;
+    while (devices != null) : (devices = devices.*.next) {
+        // NOTE: for references: https://github.com/pciutils/pciutils/blob/3ec74c71c01878f92e751f15bb8febe720c3ab40/lib/access.c#L194
+        const known_fields = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+        if (known_fields <= 0) {
+            return error.NoLibpciFieldsFound;
+        }
+
+        if ((devices.*.device_class >> 8) == display_controller) {
+            var name_buffer: [256]u8 = undefined;
+
+            const name = c_libpci.pci_lookup_name(
+                pacc,
+                &name_buffer,
+                name_buffer.len,
+                c_libpci.PCI_LOOKUP_VENDOR | c_libpci.PCI_LOOKUP_DEVICE,
+                devices.*.vendor_id,
+                devices.*.device_id,
+            );
+
+            try gpu_info_list.append(GpuInfo{
+                .gpu_name = try allocator.dupe(u8, std.mem.span(name)),
+                .gpu_cores = 0,
+                .gpu_freq = 0.0,
+            });
+        }
+    }
+
+    if (gpu_info_list.items.len == 0) {
+        try gpu_info_list.append(GpuInfo{
+            .gpu_name = try allocator.dupe(u8, "Unknown"),
+            .gpu_cores = 0,
+            .gpu_freq = 0.0,
+        });
+    }
+
+    return gpu_info_list;
 }
 
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
