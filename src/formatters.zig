@@ -113,13 +113,9 @@ pub fn getDefaultFormattedGpuInfo(allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getFormattedGpuInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) ![]u8 {
-    if (builtin.os.tag == .macos) {
-        const gpu_info = try detection.hardware.getGpuInfo(allocator);
-        defer allocator.free(gpu_info.gpu_name);
-        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq });
-    } else if (builtin.os.tag == .linux) {
-        return try std.fmt.allocPrint(allocator, "{s}{s}:{s} WIP", .{ key_color, key, ascii.Reset });
-    }
+    const gpu_info = try detection.hardware.getGpuInfo(allocator);
+    defer allocator.free(gpu_info.gpu_name);
+    return try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq });
 }
 
 pub fn getDefaultFormattedRamInfo(allocator: std.mem.Allocator) ![]u8 {
