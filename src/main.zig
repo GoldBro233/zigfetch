@@ -43,8 +43,15 @@ pub fn main() !void {
     try sys_info_list.append(separtor_buffer);
 
     if (modules_types.items.len == 0) {
-        inline for (0..formatters.formatters.len) |i| {
-            try sys_info_list.append(try formatters.default_formatters[i](allocator));
+        inline for (0..formatters.default_formatters.len) |i| {
+            const result = try formatters.default_formatters[i](allocator);
+            switch (result) {
+                .string => |r| try sys_info_list.append(r),
+                .string_arraylist => |r| {
+                    defer r.deinit();
+                    try sys_info_list.appendSlice(r.items);
+                },
+            }
         }
     } else if (conf) |c| {
         for (modules_types.items, c.value.modules) |module_type, module| {
@@ -52,16 +59,14 @@ pub fn main() !void {
             const rgb = try ascii.hexColorToRgb(module.key_color);
             const key_color = try std.fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 
-            if (module_type == config.ModuleType.net) {
-                var formatted_net_info_list = try formatters.getFormattedNetInfo(allocator, module.key, key_color);
-                defer formatted_net_info_list.deinit();
-
-                try sys_info_list.appendSlice(formatted_net_info_list.items);
-
-                continue;
+            const result = try formatters.formatters[@intFromEnum(module_type)](allocator, module.key, key_color);
+            switch (result) {
+                .string => |r| try sys_info_list.append(r),
+                .string_arraylist => |r| {
+                    defer r.deinit();
+                    try sys_info_list.appendSlice(r.items);
+                },
             }
-
-            try sys_info_list.append(try formatters.formatters[@intFromEnum(module_type)](allocator, module.key, key_color));
         }
     }
 
