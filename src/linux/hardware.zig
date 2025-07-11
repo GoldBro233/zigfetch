@@ -84,12 +84,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     };
 }
 
-pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
-    var gpu_info = GpuInfo{
-        .gpu_name = try allocator.dupe(u8, "Unknown"),
-        .gpu_cores = 0,
-        .gpu_freq = 0.0,
-    };
+pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
+    var gpu_info_list = std.ArrayList(GpuInfo).init(allocator);
 
     const display_controller = 0x03;
 
@@ -118,12 +114,23 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
                 devices.*.device_id,
             );
 
-            allocator.free(gpu_info.gpu_name);
-            gpu_info.gpu_name = try allocator.dupe(u8, std.mem.span(name));
+            gpu_info_list.append(GpuInfo{
+                .gpu_name = try allocator.dupe(u8, std.mem.span(name)),
+                .gpu_cores = 0,
+                .gpu_freq = 0.0,
+            });
         }
     }
 
-    return gpu_info;
+    if (gpu_info_list.items.len == 0) {
+        return GpuInfo{
+            .gpu_name = undefined,
+            .gpu_cores = 0,
+            .gpu_freq = 0.0,
+        };
+    }
+
+    return gpu_info_list;
 }
 
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
