@@ -129,7 +129,7 @@ pub fn getFormattedGpuInfo(allocator: std.mem.Allocator, key: []const u8, key_co
     if (builtin.os.tag == .macos) {
         const gpu_info = try detection.hardware.getGpuInfo(allocator);
         defer allocator.free(gpu_info.gpu_name);
-        return try Result{ .string = std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq }) };
+        return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq }) };
     } else if (builtin.os.tag == .linux) {
         const gpu_info_list = try detection.hardware.getGpuInfo(allocator);
         for (gpu_info_list.items) |g| {
