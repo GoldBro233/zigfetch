@@ -100,8 +100,11 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
 
     var devices = pacc.*.devices;
     while (devices != null) : (devices = devices.*.next) {
-        // TODO: handle return value
-        _ = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+        // NOTE: for references: https://github.com/pciutils/pciutils/blob/3ec74c71c01878f92e751f15bb8febe720c3ab40/lib/access.c#L194
+        const known_fields = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+        if (known_fields <= 0) {
+            return error.NoLibpciFieldsFound;
+        }
 
         if ((devices.*.device_class >> 8) == display_controller) {
             var name_buffer: [256]u8 = undefined;
