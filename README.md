@@ -18,7 +18,7 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ### Linux only
 
--   [libpci](https://github.com/pciutils/pciutils) (linux only)
+-   [libpci](https://github.com/pciutils/pciutils)
 
 ## Installation
 
