@@ -105,11 +105,13 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
         if (i < sys_info_len) {
             try stdout.print("{s}\n", .{sys_info_items[i]});
         } else if (i == sys_info_len + 1) {
+            // Print the first row of colors
             for (0..8) |j| {
                 try stdout.print("\x1b[48;5;{d}m  \x1b[0m", .{j});
             }
             try stdout.print("\n", .{});
         } else if (i == sys_info_len + 2) {
+            // Print the second row of colors
             for (8..16) |j| {
                 try stdout.print("\x1b[48;5;{d}m  \x1b[0m", .{j});
             }
