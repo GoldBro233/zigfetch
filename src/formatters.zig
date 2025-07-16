@@ -124,21 +124,28 @@ pub fn getDefaultFormattedGpuInfo(allocator: std.mem.Allocator) !Result {
 }
 
 pub fn getFormattedGpuInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
-    var formatted_gpu_info = std.ArrayList([]u8).init(allocator);
-
     if (builtin.os.tag == .macos) {
         const gpu_info = try detection.hardware.getGpuInfo(allocator);
         defer allocator.free(gpu_info.gpu_name);
         return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq }) };
     } else if (builtin.os.tag == .linux) {
+        var formatted_gpu_info_list = std.ArrayList([]u8).init(allocator);
+
         const gpu_info_list = try detection.hardware.getGpuInfo(allocator);
+
         for (gpu_info_list.items) |g| {
-            try formatted_gpu_info.append(try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, g.gpu_name, g.gpu_cores, g.gpu_freq }));
+            var formatted_gpu_info: []u8 = undefined;
+            if ((g.gpu_cores == 0) or (g.gpu_freq == 0.0)) {
+                formatted_gpu_info = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, g.gpu_name });
+            } else {
+                formatted_gpu_info = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, g.gpu_name, g.gpu_cores, g.gpu_freq });
+            }
+            try formatted_gpu_info_list.append(formatted_gpu_info);
             allocator.free(g.gpu_name);
         }
         gpu_info_list.deinit();
 
-        return Result{ .string_arraylist = formatted_gpu_info };
+        return Result{ .string_arraylist = formatted_gpu_info_list };
     }
 }
 
