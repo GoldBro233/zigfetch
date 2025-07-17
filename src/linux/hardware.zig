@@ -115,11 +115,12 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
             );
 
             const gpu_name = try allocator.dupe(u8, std.mem.span(name));
+            defer allocator.free(gpu_name);
 
-            _ = try parseGpuName(allocator, gpu_name);
+            const parsed_gpu_name = try parseGpuName(allocator, gpu_name);
 
             try gpu_info_list.append(GpuInfo{
-                .gpu_name = gpu_name,
+                .gpu_name = parsed_gpu_name,
                 .gpu_cores = 0,
                 .gpu_freq = 0.0,
             });
