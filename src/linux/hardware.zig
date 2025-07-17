@@ -114,8 +114,13 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
                 devices.*.device_id,
             );
 
+            const gpu_name = try allocator.dupe(u8, std.mem.span(name));
+            defer allocator.free(gpu_name);
+
+            const parsed_gpu_name = try parseGpuName(allocator, gpu_name);
+
             try gpu_info_list.append(GpuInfo{
-                .gpu_name = try allocator.dupe(u8, std.mem.span(name)),
+                .gpu_name = parsed_gpu_name,
                 .gpu_cores = 0,
                 .gpu_freq = 0.0,
             });
@@ -131,6 +136,32 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
     }
 
     return gpu_info_list;
+}
+
+fn parseGpuName(allocator: std.mem.Allocator, name: []u8) ![]u8 {
+    // NOTE: for references: https://github.com/pciutils/pciutils/blob/master/pci.ids
+
+    if (std.mem.startsWith(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]")) {
+        const size = std.mem.replacementSize(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD");
+        const parsed_gpu_name = try allocator.alloc(u8, size);
+        _ = std.mem.replace(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD", parsed_gpu_name);
+
+        return parsed_gpu_name;
+    } else if (std.mem.startsWith(u8, name, "Intel Corporation")) {
+        const size = std.mem.replacementSize(u8, name, "Intel Corporation", "Intel");
+        const parsed_gpu_name = try allocator.alloc(u8, size);
+        _ = std.mem.replace(u8, name, "Intel Corporation", "Intel", parsed_gpu_name);
+
+        return parsed_gpu_name;
+    } else if (std.mem.startsWith(u8, name, "NVIDIA Corporation")) {
+        const size = std.mem.replacementSize(u8, name, "NVIDIA Corporation", "NVIDIA");
+        const parsed_gpu_name = try allocator.alloc(u8, size);
+        _ = std.mem.replace(u8, name, "NVIDIA Corporation", "NVIDIA", parsed_gpu_name);
+
+        return parsed_gpu_name;
+    }
+
+    return name;
 }
 
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
