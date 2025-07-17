@@ -24,8 +24,8 @@ pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getTerminalName(allocator: std.mem.Allocator) ![]u8 {
-    const term_progrm = std.process.getEnvVarOwned(allocator, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
+    const term_program = std.process.getEnvVarOwned(allocator, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
         return allocator.dupe(u8, "Unknown");
     } else return err;
-    return term_progrm;
+    return term_program;
 }
