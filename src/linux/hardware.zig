@@ -51,6 +51,7 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
 
     // Parsing /proc/cpuinfo
     var model_name: ?[]const u8 = null;
+    var cpu_max_freq_mhz_str: ?[]const u8 = null;
 
     var lines = std.mem.splitScalar(u8, cpuinfo_data, '\n');
     while (lines.next()) |line| {
@@ -60,22 +61,50 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
             _ = parts.next(); // discards the key
             if (parts.next()) |value| {
                 model_name = std.mem.trim(u8, value, " ");
-                break;
             }
+        } else if (std.mem.startsWith(u8, trimmed, "cpu MHz") and cpu_max_freq_mhz_str == null) {
+            var parts = std.mem.splitScalar(u8, trimmed, ':');
+            _ = parts.next(); // discard the key
+            if (parts.next()) |value| {
+                cpu_max_freq_mhz_str = std.mem.trim(u8, value, " ");
+            }
+        }
+
+        if ((model_name != null) and (cpu_max_freq_mhz_str != null)) {
+            break;
         }
     }
 
-    // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-    const cpuinfo_max_freq_path = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq";
-    var file2 = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{});
-    defer file2.close();
-    const cpuinfo_max_freq_data = try file2.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(cpuinfo_max_freq_data);
+    var cpu_max_freq: f32 = 0.0;
 
-    // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-    const trimmed = std.mem.trim(u8, cpuinfo_max_freq_data, " \n\r");
-    const cpu_max_freq_khz: f32 = try std.fmt.parseFloat(f32, trimmed);
-    const cpu_max_freq: f32 = cpu_max_freq_khz / 1_000_000;
+    const cpuinfo_max_freq_path = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq";
+    var cmf_exists: bool = true;
+
+    // Checks if /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq exists
+    _ = std.fs.accessAbsolute(cpuinfo_max_freq_path, .{ .mode = .read_only }) catch |err| {
+        if (err == std.posix.AccessError.FileNotFound) {
+            cmf_exists = false;
+        }
+    };
+
+    if (cmf_exists) {
+        // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
+        var file2 = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{});
+
+        defer file2.close();
+        const cpuinfo_max_freq_data = try file2.readToEndAlloc(allocator, std.math.maxInt(usize));
+        defer allocator.free(cpuinfo_max_freq_data);
+
+        // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
+        const trimmed = std.mem.trim(u8, cpuinfo_max_freq_data, " \n\r");
+        const cpu_max_freq_khz: f32 = try std.fmt.parseFloat(f32, trimmed);
+        cpu_max_freq = cpu_max_freq_khz / 1_000_000;
+    } else {
+        if (cpu_max_freq_mhz_str != null) {
+            const cpu_max_freq_mhz: f32 = try std.fmt.parseFloat(f32, cpu_max_freq_mhz_str.?);
+            cpu_max_freq = cpu_max_freq_mhz / 1_000;
+        }
+    }
 
     return CpuInfo{
         .cpu_name = try allocator.dupe(u8, model_name orelse "Unknown"),
