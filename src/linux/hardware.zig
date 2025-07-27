@@ -291,7 +291,7 @@ pub fn getDiskSize(disk_path: []const u8) !DiskInfo {
     }
 
     const total_size = stat.f_blocks * stat.f_frsize;
-    const free_size = stat.f_bavail * stat.f_frsize;
+    const free_size = stat.f_bfree * stat.f_frsize;
     const used_size = total_size - free_size;
 
     const used_size_percentage = (used_size * 100) / total_size;
