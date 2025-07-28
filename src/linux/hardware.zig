@@ -144,9 +144,8 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
             );
 
             const gpu_name = try allocator.dupe(u8, std.mem.span(name));
-            defer allocator.free(gpu_name);
 
-            const parsed_gpu_name = try parseGpuName(allocator, gpu_name);
+            const parsed_gpu_name = try parseGpuName(allocator, gpu_name) orelse gpu_name;
 
             try gpu_info_list.append(GpuInfo{
                 .gpu_name = parsed_gpu_name,
@@ -167,7 +166,7 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
     return gpu_info_list;
 }
 
-fn parseGpuName(allocator: std.mem.Allocator, name: []u8) ![]u8 {
+fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
     // NOTE: for references: https://github.com/pciutils/pciutils/blob/master/pci.ids
 
     if (std.mem.startsWith(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]")) {
@@ -190,7 +189,7 @@ fn parseGpuName(allocator: std.mem.Allocator, name: []u8) ![]u8 {
         return parsed_gpu_name;
     }
 
-    return name;
+    return null;
 }
 
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
