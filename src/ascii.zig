@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
 
 pub const Reset = "\x1b[0m";
 pub const Bold = "\x1b[1m";
@@ -93,6 +94,9 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
     const sys_info_len: usize = sys_info_items.len;
     const max_len: usize = if (ascii_art_len > sys_info_len) ascii_art_len else sys_info_len;
 
+    const terminal_size = try utils.getTerminalSize();
+    const terminal_width: usize = @intCast(terminal_size.width);
+
     var i: usize = 0;
     while (i < max_len) : (i += 1) {
         if (i < ascii_art_len) {
@@ -103,7 +107,17 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
         try bw.flush();
 
         if (i < sys_info_len) {
-            try stdout.print("{s}\n", .{sys_info_items[i]});
+            // Ignore the username@host and the separator
+            if (i >= 2) {
+                var start: usize = std.mem.indexOf(u8, sys_info_items[i], Reset) orelse 0;
+                // `start` is the index of the last character of the ANSI reset escape sequence + 1
+                start += Reset.len + 1;
+
+                // If the visual length of the string is greater than the width of the terminal, characters exceeding that width will not be printed
+                try stdout.print("{s}\n", .{sys_info_items[i][0..(if (sys_info_items[i][start..].len > terminal_width) start + terminal_width else sys_info_items[i].len)]});
+            } else {
+                try stdout.print("{s}\n", .{sys_info_items[i]});
+            }
         } else if (i == sys_info_len + 1) {
             // Print the first row of colors
             for (0..8) |j| {
