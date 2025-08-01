@@ -69,7 +69,7 @@ $ cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
 ## Roadtrip
 
 -   [ ] Add ASCII art for each operating system and Linux distro
--   [ ] Add GPU info for Linux
+-   [x] Add GPU info for Linux
 -   [ ] Add packages info for Linux
 -   [x] Add user customization
 -   [ ] Add support for Windows
