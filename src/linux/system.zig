@@ -70,8 +70,8 @@ pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
     }
 
     return KernelInfo{
-        .kernel_name = try allocator.dupe(u8, &uts.sysname),
-        .kernel_release = try allocator.dupe(u8, &uts.release),
+        .kernel_name = try allocator.dupe(u8, std.mem.sliceTo(&uts.sysname, 0)),
+        .kernel_release = try allocator.dupe(u8, std.mem.sliceTo(&uts.release, 0)),
     };
 }
 
