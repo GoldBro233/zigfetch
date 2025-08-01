@@ -78,7 +78,7 @@ pub fn getDefaultFormattedUptimeInfo(allocator: std.mem.Allocator) !Result {
 
 pub fn getFormattedUptimeInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
     const uptime = try detection.system.getSystemUptime();
-    return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {} days, {} hours, {} minutes ", .{ key_color, key, ascii.Reset, uptime.days, uptime.hours, uptime.minutes }) };
+    return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {} days, {} hours, {} minutes", .{ key_color, key, ascii.Reset, uptime.days, uptime.hours, uptime.minutes }) };
 }
 
 pub fn getDefaultFormattedPackagesInfo(allocator: std.mem.Allocator) !Result {
