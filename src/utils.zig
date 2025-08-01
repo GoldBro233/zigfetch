@@ -49,3 +49,29 @@ test "getTerminalSize" {
 
     try std.testing.expect((terminal_size.height > 0) and (terminal_size.width > 0));
 }
+
+pub fn getLongestSysInfoStringLen(strings: []const []const u8) usize {
+    const ansi_reset = "\x1b[0m";
+    var longest_len: usize = 0;
+
+    // Ignore the username@host and the separator
+    for (strings[2..]) |s| {
+        const ansi_restet_index = std.mem.indexOf(u8, s, ansi_reset);
+        var start: usize = 0;
+
+        if (ansi_restet_index != null) {
+            // `start` is the index of the last character of the ANSI reset escape sequence + 1
+            start = ansi_restet_index.? + ansi_reset.len + 1;
+        }
+
+        longest_len = @max(longest_len, s[start..].len);
+    }
+
+    return longest_len;
+}
+
+test "getLongestSysInfoStringLen" {
+    const strings = [_][]const u8{ "", "", "test", "test-test", "test1" };
+
+    try std.testing.expectEqual(strings[3].len, getLongestSysInfoStringLen(strings[0..]));
+}
