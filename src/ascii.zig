@@ -90,34 +90,34 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
     const ascii_art_items = ascii_art_content_list.items;
     const sys_info_items = sys_info_list.items;
 
-    const ascii_art_len: usize = ascii_art_items.len;
-    const sys_info_len: usize = sys_info_items.len;
-    const max_len: usize = if (ascii_art_len > sys_info_len) ascii_art_len else sys_info_len;
-
     const terminal_size = try utils.getTerminalSize();
     const terminal_width: usize = @intCast(terminal_size.width);
 
+    const left_alignment: usize = 45;
+
+    const longest_sys_info_string_len = utils.getLongestSysInfoStringLen(sys_info_items);
+    const can_print_ascii_art: bool = terminal_width > left_alignment + longest_sys_info_string_len;
+
+    const ascii_art_len: usize = ascii_art_items.len;
+    const sys_info_len: usize = sys_info_items.len;
+
+    // NOTE: sys_info_len + 3 to be able to print the colors
+    const max_len: usize = if ((ascii_art_len > sys_info_len) and can_print_ascii_art) ascii_art_len else sys_info_len + 3;
+
     var i: usize = 0;
     while (i < max_len) : (i += 1) {
-        if (i < ascii_art_len) {
-            try stdout.print("{s:<40} \t", .{ascii_art_items[i]});
-        } else {
-            try stdout.print("{s:<40}", .{""});
+        // Print the ascii art if the width of the terminal is greater than the left alignment (45) + the longest sys info string length
+        if (can_print_ascii_art) {
+            if (i < ascii_art_len) {
+                try stdout.print("{s:<45}", .{ascii_art_items[i]});
+            } else {
+                try stdout.print("{s:<45}", .{""});
+            }
+            try bw.flush();
         }
-        try bw.flush();
 
         if (i < sys_info_len) {
-            // Ignore the username@host and the separator
-            if (i >= 2) {
-                var start: usize = std.mem.indexOf(u8, sys_info_items[i], Reset) orelse 0;
-                // `start` is the index of the last character of the ANSI reset escape sequence + 1
-                start += Reset.len + 1;
-
-                // If the visual length of the string is greater than the width of the terminal, characters exceeding that width will not be printed
-                try stdout.print("{s}\n", .{sys_info_items[i][0..(if (sys_info_items[i][start..].len > terminal_width) start + terminal_width else sys_info_items[i].len)]});
-            } else {
-                try stdout.print("{s}\n", .{sys_info_items[i]});
-            }
+            try stdout.print("{s}\n", .{sys_info_items[i]});
         } else if (i == sys_info_len + 1) {
             // Print the first row of colors
             for (0..8) |j| {
