@@ -9,7 +9,9 @@ pub fn getUsername(allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
-    const shell = try std.process.getEnvVarOwned(allocator, "SHELL");
+    const shell = std.process.getEnvVarOwned(allocator, "SHELL") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return allocator.dupe(u8, "Unknown");
+    } else return err;
 
     var child = std.process.Child.init(&[_][]const u8{ shell, "--version" }, allocator);
     defer allocator.free(shell);
