@@ -23,7 +23,7 @@ pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
     _ = try child.wait();
 
     if (std.mem.indexOf(u8, shell, "bash") != null) {
-        const bash_version = parseBashVersion(allocator, output);
+        const bash_version = parseBashVersion(output);
         defer allocator.free(output);
         return try std.fmt.allocPrint(allocator, "{s} {s}", .{ "bash", bash_version.? });
     }
@@ -31,8 +31,7 @@ pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
     return output;
 }
 
-fn parseBashVersion(allocator: std.mem.Allocator, shell_version_output: []u8) ?[]u8 {
-    _ = allocator;
+fn parseBashVersion(shell_version_output: []u8) ?[]u8 {
     const end_index = std.mem.indexOf(u8, shell_version_output, "(");
     if (end_index == null) return null;
 
