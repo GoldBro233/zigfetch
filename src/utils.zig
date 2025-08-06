@@ -9,7 +9,7 @@ pub const TermSize = struct {
 pub fn getTerminalSize() !TermSize {
     // https://github.com/softprops/zig-termsize (https://github.com/softprops/zig-termsize/blob/main/src/main.zig)
 
-    const stdout = std.io.getStdIn();
+    const stdout = std.io.getStdOut();
 
     switch (builtin.os.tag) {
         .windows => {
