@@ -26,6 +26,7 @@ pub const ModuleType = enum {
     net,
     terminal,
     locale,
+    custom,
 };
 
 pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.ArrayList(ModuleType) {
