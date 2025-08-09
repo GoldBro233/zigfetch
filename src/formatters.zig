@@ -22,6 +22,7 @@ pub const formatters = [_]*const fn (allocator: std.mem.Allocator, key: []const 
     &getFormattedNetInfo,
     &getFormattedTerminalNameInfo,
     &getFormattedLocaleInfo,
+    &getFormattedCustom,
 };
 
 pub const default_formatters = [_]*const fn (allocator: std.mem.Allocator) anyerror!Result{
@@ -206,4 +207,8 @@ pub fn getFormattedNetInfo(allocator: std.mem.Allocator, key: []const u8, key_co
     net_info_list.deinit();
 
     return Result{ .string_arraylist = formatted_net_info_list };
+}
+
+pub fn getFormattedCustom(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
+    return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{ key_color, key, ascii.Reset }) };
 }
