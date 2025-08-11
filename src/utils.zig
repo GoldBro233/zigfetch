@@ -62,6 +62,8 @@ pub fn getLongestSysInfoStringLen(strings: []const []const u8) usize {
         if (ansi_restet_index != null) {
             // `start` is the index of the last character of the ANSI reset escape sequence + 1
             start = ansi_restet_index.? + ansi_reset.len + 1;
+
+            if (start > s.len) continue;
         }
 
         longest_len = @max(longest_len, s[start..].len);
