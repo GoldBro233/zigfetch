@@ -2,7 +2,7 @@ const std = @import("std");
 const utils = @import("utils.zig");
 
 pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
-    var packages_info = std.ArrayList(u8).init(allocator);
+    var packages_info = std.array_list.Managed(u8).init(allocator);
     defer packages_info.deinit();
 
     const homebrew_packages = countHomebrewPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
