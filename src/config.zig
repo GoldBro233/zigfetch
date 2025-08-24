@@ -29,8 +29,8 @@ pub const ModuleType = enum {
     custom,
 };
 
-pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.ArrayList(ModuleType) {
-    var modules_list = std.ArrayList(ModuleType).init(allocator);
+pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
+    var modules_list = std.array_list.Managed(ModuleType).init(allocator);
 
     if (config) |c| {
         for (c.value.modules) |module| {
