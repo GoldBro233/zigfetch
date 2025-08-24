@@ -65,10 +65,10 @@ test "parse ffffff" {
     try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
 }
 
-pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u8)) !void {
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Managed([]u8)) !void {
+    var stdout_buffer: [2048]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
 
     // const ascii_art_path = "./assets/ascii/guy_fawks.txt";
     // var file = try std.fs.cwd().openFile(ascii_art_path, .{});
@@ -113,7 +113,7 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
             } else {
                 try stdout.print("{s:<45}", .{""});
             }
-            try bw.flush();
+            try stdout.flush();
         }
 
         if (i < sys_info_len) {
@@ -133,7 +133,7 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.ArrayList([]u
         } else {
             try stdout.print("\n", .{});
         }
-        try bw.flush();
+        try stdout.flush();
     }
 
     for (sys_info_list.items) |item| {
