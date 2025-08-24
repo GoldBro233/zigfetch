@@ -10,7 +10,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var sys_info_list = std.ArrayList([]u8).init(allocator);
+    var sys_info_list = std.array_list.Managed([]u8).init(allocator);
     defer sys_info_list.deinit();
 
     errdefer {
