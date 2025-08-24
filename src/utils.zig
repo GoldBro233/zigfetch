@@ -77,3 +77,24 @@ test "getLongestSysInfoStringLen" {
 
     try std.testing.expectEqual(strings[3].len, getLongestSysInfoStringLen(strings[0..]));
 }
+
+pub fn countCodepoints(str: []const u8) !usize {
+    var count: usize = 0;
+    var i: usize = 0;
+
+    while (i < str.len) {
+        const byte_len = try std.unicode.utf8ByteSequenceLength(str[i]);
+        if ((i + byte_len > str.len) or (!std.unicode.utf8ValidateSlice(str[i .. i + byte_len]))) return error.InvalidUtf8;
+
+        count += 1;
+        i += byte_len;
+    }
+
+    return count;
+}
+
+test "countCodepoints" {
+    const str = "            ████████████████";
+
+    try std.testing.expectEqual(28, try countCodepoints(str));
+}
