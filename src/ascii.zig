@@ -93,10 +93,12 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Ma
     const terminal_size = try utils.getTerminalSize();
     const terminal_width: usize = @intCast(terminal_size.width);
 
-    const left_alignment: usize = 45;
+    const spacing: usize = 5;
 
+    const longest_ascii_art_row_len: usize = try utils.getLongestAsciiArtRowLen(ascii_art_items);
     const longest_sys_info_string_len = utils.getLongestSysInfoStringLen(sys_info_items);
-    const can_print_ascii_art: bool = terminal_width > left_alignment + longest_sys_info_string_len;
+
+    const can_print_ascii_art: bool = terminal_width > longest_ascii_art_row_len + longest_sys_info_string_len + spacing;
 
     const ascii_art_len: usize = ascii_art_items.len;
     const sys_info_len: usize = sys_info_items.len;
@@ -106,13 +108,19 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Ma
 
     var i: usize = 0;
     while (i < max_len) : (i += 1) {
-        // Print the ascii art if the width of the terminal is greater than the left alignment (45) + the longest sys info string length
+        // Print the ascii art if the width of the terminal is greater than the spacing (5) + the longest ascii art row length + the longest sys info string length
         if (can_print_ascii_art) {
+            const alignment_buffer = try allocator.alloc(u8, longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing);
+            @memset(alignment_buffer, ' ');
+
             if (i < ascii_art_len) {
-                try stdout.print("{s:<45}", .{ascii_art_items[i]});
+                try stdout.print("{s}{s}", .{ ascii_art_items[i], alignment_buffer });
             } else {
-                try stdout.print("{s:<45}", .{""});
+                try stdout.print("{s}", .{alignment_buffer});
             }
+
+            allocator.free(alignment_buffer);
+
             try stdout.flush();
         }
 
