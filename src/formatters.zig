@@ -5,7 +5,7 @@ const detection = @import("detection.zig").os_module;
 
 const Result = union(enum) {
     string: []u8,
-    string_arraylist: std.ArrayList([]u8),
+    string_arraylist: std.array_list.Managed([]u8),
 };
 
 pub const formatters = [_]*const fn (allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) anyerror!Result{
@@ -130,7 +130,7 @@ pub fn getFormattedGpuInfo(allocator: std.mem.Allocator, key: []const u8, key_co
         defer allocator.free(gpu_info.gpu_name);
         return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{ key_color, key, ascii.Reset, gpu_info.gpu_name, gpu_info.gpu_cores, gpu_info.gpu_freq }) };
     } else if (builtin.os.tag == .linux) {
-        var formatted_gpu_info_list = std.ArrayList([]u8).init(allocator);
+        var formatted_gpu_info_list = std.array_list.Managed([]u8).init(allocator);
 
         const gpu_info_list = try detection.hardware.getGpuInfo(allocator);
 
@@ -196,7 +196,7 @@ pub fn getDefaultFormattedNetInfo(allocator: std.mem.Allocator) !Result {
 }
 
 pub fn getFormattedNetInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
-    var formatted_net_info_list = std.ArrayList([]u8).init(allocator);
+    var formatted_net_info_list = std.array_list.Managed([]u8).init(allocator);
 
     var net_info_list = try detection.network.getNetInfo(allocator);
     for (net_info_list.items) |n| {
