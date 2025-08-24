@@ -98,3 +98,19 @@ test "countCodepoints" {
 
     try std.testing.expectEqual(28, try countCodepoints(str));
 }
+
+pub fn getLongestAsciiArtRowLen(ascii_art: []const []const u8) !usize {
+    var longest_len: usize = 0;
+
+    for (ascii_art) |ascii_row| {
+        longest_len = @max(longest_len, try countCodepoints(ascii_row));
+    }
+
+    return longest_len;
+}
+
+test "getLongestAsciiArtRowLen" {
+    const rows = [_][]const u8{ "            ████████████████", "██░░░░██████████░░    ░░██████████░░░░██" };
+
+    try std.testing.expectEqual(40, try getLongestAsciiArtRowLen(rows[0..]));
+}
