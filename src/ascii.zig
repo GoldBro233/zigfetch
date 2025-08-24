@@ -80,7 +80,7 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Ma
 
     var lines = std.mem.splitScalar(u8, ascii_art_data, '\n');
 
-    var ascii_art_content_list = std.ArrayList([]const u8).init(allocator);
+    var ascii_art_content_list = std.array_list.Managed([]const u8).init(allocator);
     defer ascii_art_content_list.deinit();
 
     while (lines.next()) |line| {
