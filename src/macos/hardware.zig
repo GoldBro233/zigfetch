@@ -236,7 +236,7 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
 
         if (c_iokit.CFDictionaryGetValueIfPresent(@as(c_iokit.CFDictionaryRef, @ptrCast(properties_ptr)), model_key, &name_ref) == c_iokit.TRUE) {
             if (c_iokit.CFGetTypeID(name_ref) == c_iokit.CFStringGetTypeID()) {
-                const accel_name = utils.cfStringToZigString(allocator, @as(c_iokit.CFStringRef, @ptrCast(name_ref))) catch {
+                const accel_name = utils.cfTypeRefToZigString(allocator, name_ref) catch {
                     return gpu_info;
                 };
 
