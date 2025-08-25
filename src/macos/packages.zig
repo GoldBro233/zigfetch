@@ -9,27 +9,18 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
     const homebrew_casks = countHomebrewCasks() catch |err| if (err == error.FileNotFound) 0 else return err;
     const macports_packages = countMacportPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
 
-    var buffer: [10]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buffer);
+    var buffer: [32]u8 = undefined;
 
     if (homebrew_packages > 0) {
-        try std.fmt.formatInt(homebrew_packages, 10, .lower, .{}, fbs.writer());
-        try packages_info.appendSlice(" brew: ");
-        try packages_info.appendSlice(fbs.getWritten());
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " brew: {d}", .{homebrew_packages}));
     }
 
     if (homebrew_casks > 0) {
-        fbs.reset();
-        try std.fmt.formatInt(homebrew_casks, 10, .lower, .{}, fbs.writer());
-        try packages_info.appendSlice(" brew-cask: ");
-        try packages_info.appendSlice(fbs.getWritten());
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " brew-cask: {d}", .{homebrew_casks}));
     }
 
     if (macports_packages > 0) {
-        fbs.reset();
-        try std.fmt.formatInt(macports_packages, 10, .lower, .{}, fbs.writer());
-        try packages_info.appendSlice(" macports: ");
-        try packages_info.appendSlice(fbs.getWritten());
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " macports: {d}", .{macports_packages}));
     }
 
     return try allocator.dupe(u8, packages_info.items);
