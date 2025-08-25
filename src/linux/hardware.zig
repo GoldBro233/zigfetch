@@ -113,8 +113,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     };
 }
 
-pub fn getGpuInfo(allocator: std.mem.Allocator) !std.ArrayList(GpuInfo) {
-    var gpu_info_list = std.ArrayList(GpuInfo).init(allocator);
+pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
+    var gpu_info_list = std.array_list.Managed(GpuInfo).init(allocator);
 
     const display_controller = 0x03;
 
