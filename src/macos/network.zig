@@ -11,8 +11,8 @@ pub const NetInfo = struct {
     ipv4_addr: []u8,
 };
 
-pub fn getNetInfo(allocator: std.mem.Allocator) !std.ArrayList(NetInfo) {
-    var net_info_list = std.ArrayList(NetInfo).init(allocator);
+pub fn getNetInfo(allocator: std.mem.Allocator) !std.array_list.Managed(NetInfo) {
+    var net_info_list = std.array_list.Managed(NetInfo).init(allocator);
 
     var ifap: ?*c_ifaddrs.ifaddrs = null;
     if (c_ifaddrs.getifaddrs(&ifap) != 0) {
