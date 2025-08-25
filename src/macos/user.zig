@@ -13,25 +13,18 @@ pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
         return allocator.dupe(u8, "Unknown");
     } else return err;
 
-    var child = std.process.Child.init(&[_][]const u8{ shell, "--version" }, allocator);
     defer allocator.free(shell);
 
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
-
-    try child.spawn();
-
-    const output = try child.stdout.?.reader().readAllAlloc(allocator, 1024 * 1024);
-
-    _ = try child.wait();
+    const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{ shell, "--version" } });
+    const result_stdout = result.stdout;
 
     if (std.mem.indexOf(u8, shell, "bash") != null) {
-        const bash_version = parseBashVersion(output);
-        defer allocator.free(output);
+        const bash_version = parseBashVersion(result_stdout);
+        defer allocator.free(result_stdout);
         return try std.fmt.allocPrint(allocator, "{s} {s}", .{ "bash", bash_version.? });
     }
 
-    return output;
+    return result_stdout;
 }
 
 fn parseBashVersion(shell_version_output: []u8) ?[]u8 {
