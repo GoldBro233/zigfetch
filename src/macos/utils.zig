@@ -1,8 +1,10 @@
 const std = @import("std");
 const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
 
-/// Converts a CFString to a Zig string.
-pub fn cfStringToZigString(allocator: std.mem.Allocator, cf_string: c_iokit.CFStringRef) ![]u8 {
+/// Converts a CFTypeRef casted to CFStringRef to a Zig string.
+pub fn cfTypeRefToZigString(allocator: std.mem.Allocator, cf_type_ref: c_iokit.CFTypeRef) ![]u8 {
+    const cf_string: c_iokit.CFStringRef = @ptrFromInt(@intFromPtr(cf_type_ref));
+
     const length = c_iokit.CFStringGetLength(cf_string);
     const max_size = c_iokit.CFStringGetMaximumSizeForEncoding(length, c_iokit.kCFStringEncodingUTF8) + 1;
     const max_size_usize = @as(usize, @intCast(max_size));
