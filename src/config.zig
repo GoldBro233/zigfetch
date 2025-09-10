@@ -9,6 +9,7 @@ pub const Module = struct {
 };
 
 pub const Config = struct {
+    ascii_abs_path: ?[]u8 = null,
     modules: []Module,
 };
 
@@ -28,6 +29,10 @@ pub const ModuleType = enum {
     locale,
     custom,
 };
+
+pub fn getAsciiPath(config: ?std.json.Parsed(Config)) ?[]u8 {
+    return config.?.value.ascii_abs_path;
+}
 
 pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
     var modules_list = std.array_list.Managed(ModuleType).init(allocator);

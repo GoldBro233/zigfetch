@@ -70,5 +70,5 @@ pub fn main() !void {
         }
     }
 
-    try ascii.printAscii(allocator, sys_info_list);
+    try ascii.printAscii(allocator, config.getAsciiPath(conf), sys_info_list);
 }
