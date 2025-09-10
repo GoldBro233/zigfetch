@@ -70,5 +70,5 @@ pub fn main() !void {
         }
     }
 
-    try ascii.printAscii(allocator, config.getAsciiPath(conf), modules_list);
+    try ascii.printAsciiAndModules(allocator, config.getAsciiPath(conf), modules_list);
 }

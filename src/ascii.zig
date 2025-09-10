@@ -65,7 +65,7 @@ test "parse ffffff" {
     try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
 }
 
-pub fn printAscii(allocator: std.mem.Allocator, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
+pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
     var stdout_buffer: [2048]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
