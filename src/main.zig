@@ -10,11 +10,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var sys_info_list = std.array_list.Managed([]u8).init(allocator);
-    defer sys_info_list.deinit();
+    var modules_list = std.array_list.Managed([]u8).init(allocator);
+    defer modules_list.deinit();
 
     errdefer {
-        for (sys_info_list.items) |info| {
+        for (modules_list.items) |info| {
             allocator.free(info);
         }
     }
@@ -27,7 +27,7 @@ pub fn main() !void {
 
     const username = try detection.user.getUsername(allocator);
     const hostname = try detection.system.getHostname(allocator);
-    try sys_info_list.append(try std.fmt.allocPrint(allocator, "{s}{s}{s}@{s}{s}{s}", .{
+    try modules_list.append(try std.fmt.allocPrint(allocator, "{s}{s}{s}@{s}{s}{s}", .{
         ascii.Yellow,
         username,
         ascii.Reset,
@@ -40,16 +40,16 @@ pub fn main() !void {
 
     const separtor_buffer = try allocator.alloc(u8, username.len + hostname.len + 1);
     @memset(separtor_buffer, '-');
-    try sys_info_list.append(separtor_buffer);
+    try modules_list.append(separtor_buffer);
 
     if (modules_types.items.len == 0) {
         inline for (0..formatters.default_formatters.len) |i| {
             const result = try formatters.default_formatters[i](allocator);
             switch (result) {
-                .string => |r| try sys_info_list.append(r),
+                .string => |r| try modules_list.append(r),
                 .string_arraylist => |r| {
                     defer r.deinit();
-                    try sys_info_list.appendSlice(r.items);
+                    try modules_list.appendSlice(r.items);
                 },
             }
         }
@@ -61,14 +61,14 @@ pub fn main() !void {
 
             const result = try formatters.formatters[@intFromEnum(module_type)](allocator, module.key, key_color);
             switch (result) {
-                .string => |r| try sys_info_list.append(r),
+                .string => |r| try modules_list.append(r),
                 .string_arraylist => |r| {
                     defer r.deinit();
-                    try sys_info_list.appendSlice(r.items);
+                    try modules_list.appendSlice(r.items);
                 },
             }
         }
     }
 
-    try ascii.printAscii(allocator, sys_info_list);
+    try ascii.printAsciiAndModules(allocator, config.getAsciiPath(conf), modules_list);
 }

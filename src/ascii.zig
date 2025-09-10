@@ -65,18 +65,23 @@ test "parse ffffff" {
     try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
 }
 
-pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Managed([]u8)) !void {
+pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
     var stdout_buffer: [2048]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-    // const ascii_art_path = "./assets/ascii/guy_fawks.txt";
-    // var file = try std.fs.cwd().openFile(ascii_art_path, .{});
-    // defer file.close();
-    // const ascii_art_data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    // defer allocator.free(ascii_art_data);
+    var ascii_art_data: []const u8 = undefined;
+    if (ascii_art_path) |ascii| {
+        var ascii_file = try std.fs.cwd().openFile(ascii, .{});
+        defer ascii_file.close();
+        ascii_art_data = try ascii_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    } else {
+        ascii_art_data = @embedFile("./assets/ascii/guy_fawks.txt");
+    }
 
-    const ascii_art_data = @embedFile("./assets/ascii/guy_fawks.txt");
+    defer if (ascii_art_path != null) {
+        allocator.free(ascii_art_data);
+    };
 
     var lines = std.mem.splitScalar(u8, ascii_art_data, '\n');
 
@@ -110,7 +115,7 @@ pub fn printAscii(allocator: std.mem.Allocator, sys_info_list: std.array_list.Ma
     while (i < max_len) : (i += 1) {
         // Print the ascii art if the width of the terminal is greater than the spacing (5) + the longest ascii art row length + the longest sys info string length
         if (can_print_ascii_art) {
-            const alignment_buffer = try allocator.alloc(u8, longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing);
+            const alignment_buffer = try allocator.alloc(u8, if (i < ascii_art_len) longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing else longest_ascii_art_row_len + spacing);
             @memset(alignment_buffer, ' ');
 
             if (i < ascii_art_len) {
