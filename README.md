@@ -1,5 +1,12 @@
 # Zigfetch
 
+![Zig](https://img.shields.io/badge/Zig-%23F7A41D.svg?style=flat&logo=zig&logoColor=white)
+![GitHub Release](https://img.shields.io/github/v/release/utox39/zigfetch)
+![macOS](https://img.shields.io/badge/mac%20os-000000?style=flat&logo=macos&logoColor=F0F0F0)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
+
+---
+
 -   [Description](#description)
 -   [Requirements](#requirements)
 -   [Installation](#installation)
