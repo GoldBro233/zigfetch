@@ -1,0 +1,101 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            target: x86_64-linux
+            runner_arch: x64
+            setup_deps: |
+              sudo apt-get update
+              sudo apt-get install -y libpci-dev
+
+          # macOS x86_64
+          - os: macos-13
+            target: x86_64-darwin
+            runner_arch: x64
+            setup_deps: ""
+
+          # macOS aarch64 (Apple Silicon)
+          - os: macos-latest
+            target: aarch64-darwin
+            runner_arch: arm64
+            setup_deps: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: mlugg/setup-zig@v2
+      with:
+        version: 0.15.1
+
+    - name: Setup platform dependencies
+      if: matrix.setup_deps != ''
+      run: ${{ matrix.setup_deps }}
+
+    - name: Cache Zig
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-${{ matrix.target }}-zig-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.target }}-zig-
+
+    - name: Build for target
+      run: |
+        zig build -Doptimize=ReleaseSafe
+
+        mv zig-out/bin/zigfetch zig-out/bin/zigfetch-${{ matrix.target }}
+
+    - name: Verify binary
+      run: |
+        ls -la zig-out/bin/
+        file zig-out/bin/zigfetch-${{ matrix.target }}
+
+    - name: Create archive
+      run: |
+        tar -czf zigfetch-${{ matrix.target }}.tar.gz -C zig-out/bin zigfetch-${{ matrix.target }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: zigfetch-${{ matrix.target }}
+        path: |
+          # zig-out/bin/zigfetch-${{ matrix.target }}
+          zigfetch-${{ matrix.target }}.tar.gz
+        retention-days: 3
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: mlugg/setup-zig@v2
+      with:
+        version: 0.15.1
+
+    - name: Setup dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpci-dev
+
+    - name: Run tests
+      run: |
+        zig test src/ascii.zig
+        zig test src/utils.zig

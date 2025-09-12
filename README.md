@@ -2,6 +2,7 @@
 
 ![Zig](https://img.shields.io/badge/Zig-%23F7A41D.svg?style=flat&logo=zig&logoColor=white)
 ![GitHub Release](https://img.shields.io/github/v/release/utox39/zigfetch)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/utox39/zigfetch/build.yml)
 ![macOS](https://img.shields.io/badge/mac%20os-000000?style=flat&logo=macos&logoColor=F0F0F0)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
 
