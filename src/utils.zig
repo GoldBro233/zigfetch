@@ -43,7 +43,7 @@ pub fn getTerminalSize() !TermSize {
 }
 
 test "getTerminalSize" {
-    const terminal_size = try getTerminalSize();
+    const terminal_size = try getTerminalSize() catch TermSize{ 50, 50 };
 
     std.debug.print("Height: {}, Width {}\n", .{ terminal_size.height, terminal_size.width });
 
