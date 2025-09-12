@@ -95,7 +95,7 @@ pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8,
     const ascii_art_items = ascii_art_content_list.items;
     const sys_info_items = sys_info_list.items;
 
-    const terminal_size = try utils.getTerminalSize();
+    const terminal_size = utils.getTerminalSize() catch utils.TermSize{ .height = 50, .width = 50 };
     const terminal_width: usize = @intCast(terminal_size.width);
 
     const spacing: usize = 5;
