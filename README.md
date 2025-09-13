@@ -6,6 +6,10 @@
 ![macOS](https://img.shields.io/badge/mac%20os-000000?style=flat&logo=macos&logoColor=F0F0F0)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
 
+Default config             |  Custom config
+:-------------------------:|:-------------------------:
+![dafault-config](assets/screenshot-default-config.png)  |  ![custom-config](assets/screenshot-custom-config.png)
+
 ---
 
 -   [Description](#description)
