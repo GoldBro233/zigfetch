@@ -27,14 +27,15 @@ pub fn main() !void {
 
     const username = try detection.user.getUsername(allocator);
     const hostname = try detection.system.getHostname(allocator);
-    try modules_list.append(try std.fmt.allocPrint(allocator, "{s}{s}{s}@{s}{s}{s}", .{
-        ascii.Yellow,
-        username,
-        ascii.Reset,
-        ascii.Yellow,
-        hostname,
-        ascii.Reset,
-    }));
+
+    const username_hostname_color = if (config.getUsernameHostnameColor(conf)) |color| blk: {
+        var buf: [32]u8 = undefined;
+        const rgb = try ascii.hexColorToRgb(color);
+        const formatted_color = try std.fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
+        break :blk formatted_color;
+    } else ascii.Yellow;
+
+    try modules_list.append(try formatters.getFormattedUsernameHostname(allocator, username_hostname_color, username, hostname));
     allocator.free(hostname);
     allocator.free(username);
 
