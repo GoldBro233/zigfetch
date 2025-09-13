@@ -10,6 +10,7 @@ pub const Module = struct {
 
 pub const Config = struct {
     ascii_abs_path: ?[]u8 = null,
+    username_hostname_color: ?[]u8 = null,
     modules: []Module,
 };
 
@@ -33,6 +34,12 @@ pub const ModuleType = enum {
 pub fn getAsciiPath(config: ?std.json.Parsed(Config)) ?[]u8 {
     if (config) |c| {
         return c.value.ascii_abs_path;
+    } else return null;
+}
+
+pub fn getUsernameHostnameColor(config: ?std.json.Parsed(Config)) ?[]u8 {
+    if (config) |c| {
+        return c.value.username_hostname_color;
     } else return null;
 }
 
