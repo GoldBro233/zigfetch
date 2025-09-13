@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const ascii = @import("ascii.zig");
 
 pub const Module = struct {
