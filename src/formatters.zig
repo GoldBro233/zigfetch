@@ -41,6 +41,17 @@ pub const default_formatters = [_]*const fn (allocator: std.mem.Allocator) anyer
     &getDefaultFormattedLocaleInfo,
 };
 
+pub fn getFormattedUsernameHostname(allocator: std.mem.Allocator, color: []const u8, username: []const u8, hostname: []const u8) ![]u8 {
+    return try std.fmt.allocPrint(allocator, "{s}{s}{s}@{s}{s}{s}", .{
+        color,
+        username,
+        ascii.Reset,
+        color,
+        hostname,
+        ascii.Reset,
+    });
+}
+
 pub fn getDefaultFormattedKernelInfo(allocator: std.mem.Allocator) !Result {
     return try getFormattedKernelInfo(allocator, "Kernel", ascii.Yellow);
 }

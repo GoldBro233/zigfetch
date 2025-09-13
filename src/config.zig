@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const ascii = @import("ascii.zig");
 
 pub const Module = struct {
@@ -10,6 +9,7 @@ pub const Module = struct {
 
 pub const Config = struct {
     ascii_abs_path: ?[]u8 = null,
+    username_hostname_color: ?[]u8 = null,
     modules: []Module,
 };
 
@@ -31,7 +31,15 @@ pub const ModuleType = enum {
 };
 
 pub fn getAsciiPath(config: ?std.json.Parsed(Config)) ?[]u8 {
-    return config.?.value.ascii_abs_path;
+    if (config) |c| {
+        return c.value.ascii_abs_path;
+    } else return null;
+}
+
+pub fn getUsernameHostnameColor(config: ?std.json.Parsed(Config)) ?[]u8 {
+    if (config) |c| {
+        return c.value.username_hostname_color;
+    } else return null;
 }
 
 pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
