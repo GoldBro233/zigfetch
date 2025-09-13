@@ -31,7 +31,9 @@ pub const ModuleType = enum {
 };
 
 pub fn getAsciiPath(config: ?std.json.Parsed(Config)) ?[]u8 {
-    return config.?.value.ascii_abs_path;
+    if (config) |c| {
+        return c.value.ascii_abs_path;
+    } else return null;
 }
 
 pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
