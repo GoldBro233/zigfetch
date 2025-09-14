@@ -6,9 +6,9 @@
 ![macOS](https://img.shields.io/badge/mac%20os-000000?style=flat&logo=macos&logoColor=F0F0F0)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
 
-Default config             |  Custom config
-:-------------------------:|:-------------------------:
-![dafault-config](assets/screenshot-default-config.png)  |  ![custom-config](assets/screenshot-custom-config.png)
+|                     Default config                      |                     Custom config                     |
+| :-----------------------------------------------------: | :---------------------------------------------------: |
+| ![dafault-config](assets/screenshot-default-config.png) | ![custom-config](assets/screenshot-custom-config.png) |
 
 ---
 
@@ -76,6 +76,83 @@ $ touch config.json
 
 ```console
 $ cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
+```
+
+#### Modules
+
+Available modules:
+
+-   Os
+-   Kernel
+-   Uptime
+-   Packages
+-   Shell
+-   Cpu
+-   Gpu
+-   Ram
+-   Swap
+-   Disk
+-   Net
+-   Terminal
+-   Locale
+-   Custom
+
+| Module type |      Linux      |          macOS           | Windows |
+| :---------: | :-------------: | :----------------------: | :-----: |
+|     os      |       Yes       |           Yes            |   WIP   |
+|   kernel    |       Yes       |           Yes            |   WIP   |
+|   uptime    |       Yes       |           Yes            |   WIP   |
+|  packages   |       WIP       | Yes (Homebrew, Macports) |   WIP   |
+|    shell    | Yes (bash, zsh) |     Yes (bash, zsh)      |   WIP   |
+|     cpu     |       Yes       |           Yes            |   WIP   |
+|     gpu     |       Yes       | Yes (Apple Silicon only) |   WIP   |
+|     ram     |       Yes       |           Yes            |   WIP   |
+|    swap     |       Yes       |           Yes            |   WIP   |
+|    disk     |       Yes       |           Yes            |   WIP   |
+|     net     |       Yes       |           Yes            |   WIP   |
+|  terminal   |       Yes       |           Yes            |   WIP   |
+|   locale    |       Yes       |           Yes            |   WIP   |
+
+```json
+  "modules": [
+    {
+      "type": "os",
+      "key": "OS",
+      "key_color": "#5E81AC"
+    },
+    ...
+  ]
+```
+
+#### Custom module
+
+```json
+  "modules": [
+    {
+      "type": "custom",
+      "key": "-----------",
+      "key_color": "#5E81AC"
+    },
+    ...
+  ]
+```
+
+#### Custom ASCII art
+
+To use an ASCII art of your choice:
+
+```json
+"ascii_abs_path": "absolute_path/to/your/ascii_art.txt"
+```
+
+Don't use the `~` character.
+
+#### Username and Hostname color
+
+To change the Username and Hostname color (HEX colors only):
+
+```json
+"username_hostname_color": "#5E81AC"
 ```
 
 ## Roadtrip
