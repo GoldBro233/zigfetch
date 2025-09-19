@@ -159,7 +159,6 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
         "aerospace",
         "amethyst",
         "chunkwm",
-        "kwm",
         "rectangle",
         "spectacle",
         "yabai",
