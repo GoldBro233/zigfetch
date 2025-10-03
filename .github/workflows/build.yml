@@ -65,15 +65,11 @@ jobs:
         ls -la zig-out/bin/
         file zig-out/bin/zigfetch-${{ matrix.target }}
 
-    - name: Create archive
-      run: |
-        tar -czf zigfetch-${{ matrix.target }}.tar.gz -C zig-out/bin zigfetch-${{ matrix.target }}
-
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: zigfetch-${{ matrix.target }}
-        path: zigfetch-${{ matrix.target }}.tar.gz
+        path: zig-out/bin/zigfetch-${{ matrix.target }}
         retention-days: 3
 
   test:
