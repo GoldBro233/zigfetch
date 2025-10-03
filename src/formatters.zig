@@ -20,6 +20,7 @@ pub const formatters = [_]*const fn (allocator: std.mem.Allocator, key: []const 
     &getFormattedSwapInfo,
     &getFormattedDiskInfo,
     &getFormattedNetInfo,
+    &getFormattedWindowManagerInfo,
     &getFormattedTerminalNameInfo,
     &getFormattedLocaleInfo,
     &getFormattedCustom,
@@ -37,6 +38,7 @@ pub const default_formatters = [_]*const fn (allocator: std.mem.Allocator) anyer
     &getDefaultFormattedSwapInfo,
     &getDefaultFormattedDiskInfo,
     &getDefaultFormattedNetInfo,
+    &getDefaultFormattedWindowManagerInfo,
     &getDefaultFormattedTerminalNameInfo,
     &getDefaultFormattedLocaleInfo,
 };
@@ -190,6 +192,16 @@ pub fn getDefaultFormattedDiskInfo(allocator: std.mem.Allocator) !Result {
 pub fn getFormattedDiskInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
     const disk_info = try detection.hardware.getDiskSize("/");
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s} ({s}):{s} {d:.2} / {d:.2} GB ({}%)", .{ key_color, key, disk_info.disk_path, ascii.Reset, disk_info.disk_usage, disk_info.disk_size, disk_info.disk_usage_percentage }) };
+}
+
+pub fn getDefaultFormattedWindowManagerInfo(allocator: std.mem.Allocator) !Result {
+    return try getFormattedWindowManagerInfo(allocator, "WM", ascii.Yellow);
+}
+
+pub fn getFormattedWindowManagerInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
+    const wm = try detection.system.getWindowManagerInfo(allocator);
+    defer allocator.free(wm);
+    return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, ascii.Reset, wm }) };
 }
 
 pub fn getDefaultFormattedTerminalNameInfo(allocator: std.mem.Allocator) !Result {
