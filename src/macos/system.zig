@@ -155,7 +155,7 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
 
     var wm_name: ?[]const u8 = null;
 
-    const supported_wms: [7][]const u8 = .{
+    const supported_wms: [6][]const u8 = .{
         "aerospace",
         "amethyst",
         "chunkwm",
