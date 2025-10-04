@@ -25,6 +25,7 @@ pub const ModuleType = enum {
     swap,
     disk,
     net,
+    wm,
     terminal,
     locale,
     custom,

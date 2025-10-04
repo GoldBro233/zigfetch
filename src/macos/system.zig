@@ -128,3 +128,68 @@ pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
 
     return os_info;
 }
+
+pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
+    var name = [_]c_int{ c_sysctl.CTL_KERN, c_sysctl.KERN_PROC, c_sysctl.KERN_PROC_ALL };
+    var size: usize = 0;
+
+    // First call to get the dimension
+    if (c_sysctl.sysctl(&name, name.len, null, &size, null, 0) != 0) {
+        return error.SysctlFailed;
+    }
+
+    const buffer: []u8 = try allocator.alloc(u8, size);
+    defer allocator.free(buffer);
+
+    // Second call to retrieve process data
+    if (c_sysctl.sysctl(&name, name.len, buffer.ptr, &size, null, 0) != 0) {
+        return error.SysctlFailed;
+    }
+
+    // Ensure the buffer size is valid
+    if (size % @sizeOf(c_sysctl.struct_kinfo_proc) != 0) {
+        return error.InvalidBufferSize;
+    }
+
+    const kinfo_list = std.mem.bytesAsSlice(c_sysctl.struct_kinfo_proc, buffer);
+
+    var wm_name: ?[]const u8 = null;
+
+    const supported_wms: [7][]const u8 = .{
+        "aerospace",
+        "amethyst",
+        "chunkwm",
+        "rectangle",
+        "spectacle",
+        "yabai",
+    };
+
+    wm_name = outer: {
+        for (kinfo_list) |kinfo| {
+            const pid = kinfo.kp_proc.p_pid;
+            if (pid <= 0) continue;
+
+            // Gets the process pathname
+            var pathbuf: [c_libproc.PROC_PIDPATHINFO_MAXSIZE]u8 = undefined;
+            // c_libproc.proc_pidpath saves the process name in `pathbuf` and returns the len
+            const path_len = @as(usize, @intCast(c_libproc.proc_pidpath(pid, &pathbuf, pathbuf.len)));
+            const proc_pathname = if (path_len > 0) try allocator.dupe(u8, pathbuf[0..@intCast(path_len)]) else try allocator.dupe(u8, "unknown");
+            defer allocator.free(proc_pathname);
+
+            inline for (supported_wms) |wm| {
+                if (std.ascii.endsWithIgnoreCase(proc_pathname, wm)) {
+                    const basename = if (std.mem.lastIndexOfScalar(u8, proc_pathname, '/')) |index|
+                        proc_pathname[index + 1 ..]
+                    else
+                        proc_pathname;
+
+                    break :outer try allocator.dupe(u8, basename);
+                }
+            }
+        }
+
+        break :outer null;
+    };
+
+    return wm_name orelse allocator.dupe(u8, "Quartz Compositor");
+}
