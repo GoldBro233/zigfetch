@@ -94,6 +94,7 @@ Available modules:
 -   Swap
 -   Disk
 -   Net
+-   WM (Window Manager)
 -   Terminal
 -   Locale
 -   Custom
@@ -111,6 +112,7 @@ Available modules:
 |    swap     |       Yes       |           Yes            |   WIP   |
 |    disk     |       Yes       |           Yes            |   WIP   |
 |     net     |       Yes       |           Yes            |   WIP   |
+|     wm      |       Yes       |           Yes            |   WIP   |
 |  terminal   |       Yes       |           Yes            |   WIP   |
 |   locale    |       Yes       |           Yes            |   WIP   |
 
