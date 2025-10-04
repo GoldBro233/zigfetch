@@ -98,3 +98,58 @@ pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
 
     return try allocator.dupe(u8, pretty_name orelse "Unknown");
 }
+
+pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
+    var dir = try std.fs.cwd().openDir("/proc/", .{ .iterate = true });
+    defer dir.close();
+
+    var wm_name: ?[]const u8 = null;
+
+    var iter = dir.iterate();
+    wm_name = outer: {
+        while (try iter.next()) |entry| {
+            if (entry.kind != .directory) continue;
+
+            // Check if the entry name is numeric
+            _ = std.fmt.parseInt(i32, entry.name, 10) catch continue;
+
+            var buf: [1024]u8 = undefined;
+            const file_name = try std.fmt.bufPrint(&buf, "/proc/{s}/comm", .{entry.name});
+            const file = try std.fs.cwd().openFile(file_name, .{ .mode = .read_only });
+            defer file.close();
+
+            // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
+            var file_buf: [16]u8 = undefined;
+            var reader = std.fs.File.Reader.init(file, &file_buf);
+            const read = try reader.read(&file_buf);
+            const proc_name = file_buf[0..read];
+
+            const proc_name_trimmed = std.mem.trim(u8, proc_name, "\n");
+
+            const supported_wms: [9][]const u8 = .{
+                "i3", // https://i3wm.org/
+                // "i3gaps", // TODO: find a way to recognize i3gaps
+                "sway", // https://swaywm.org/
+                // "swayfx", // TODO: find a way to recognize swayfx
+                "niri", // https://github.com/YaLTeR/niri
+                "dwm", // https://dwm.suckless.org/
+                // "qtile", // TODO: find a way to recognize qtile
+                "awesome", // https://awesomewm.org/
+                "river", // https://codeberg.org/river/river
+                "hyprland", // https://hypr.land/
+                "bspwm", // https://github.com/baskerville/bspwm
+                "openbox", // https://openbox.org/
+            };
+
+            inline for (supported_wms) |wm| {
+                if (std.ascii.eqlIgnoreCase(wm, proc_name_trimmed)) {
+                    break :outer try allocator.dupe(u8, proc_name_trimmed);
+                }
+            }
+        }
+
+        break :outer null;
+    };
+
+    return wm_name orelse allocator.dupe(u8, "Unknown");
+}
