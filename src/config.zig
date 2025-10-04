@@ -51,6 +51,7 @@ pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Co
             if (module_enum) |m| {
                 try modules_list.append(m);
             } else {
+                modules_list.deinit();
                 return error.InvalidModule;
             }
         }
