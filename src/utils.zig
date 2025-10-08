@@ -114,3 +114,15 @@ test "getLongestAsciiArtRowLen" {
 
     try std.testing.expectEqual(40, try getLongestAsciiArtRowLen(rows[0..]));
 }
+
+pub fn readFile(allocator: std.mem.Allocator, file: std.fs.File, size: usize) ![]const u8 {
+    var file_buf = try allocator.alloc(u8, size);
+    defer allocator.free(file_buf);
+
+    var reader = std.fs.File.Reader.init(file, file_buf);
+    const read = try reader.read(file_buf);
+
+    const data = file_buf[0..read];
+
+    return allocator.dupe(u8, data);
+}
