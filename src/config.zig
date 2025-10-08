@@ -1,5 +1,6 @@
 const std = @import("std");
 const ascii = @import("ascii.zig");
+const utils = @import("utils.zig");
 
 pub const Module = struct {
     type: []u8,
@@ -76,11 +77,7 @@ pub fn readConfigFile(allocator: std.mem.Allocator) !?std.json.Parsed(Config) {
 
     const file_size = (try config_file.stat()).size;
 
-    var file_buf = try allocator.alloc(u8, file_size);
-    var reader = std.fs.File.Reader.init(config_file, file_buf);
-    const read = try reader.read(file_buf);
-    const config_data = file_buf[0..read];
-
+    const config_data = try utils.readFile(allocator, config_file, file_size);
     defer allocator.free(config_data);
 
     return try std.json.parseFromSlice(Config, allocator, config_data, .{ .allocate = .alloc_always });
