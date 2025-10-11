@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("../utils.zig");
 const c_unistd = @cImport(@cInclude("unistd.h"));
 const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
 const c_libpci = @cImport(@cInclude("pci/pci.h"));
@@ -44,9 +45,16 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
 
     // Reads /proc/cpuinfo
     const cpuinfo_path = "/proc/cpuinfo";
-    var file = try std.fs.cwd().openFile(cpuinfo_path, .{});
-    defer file.close();
-    const cpuinfo_data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const cpuinfo_file = try std.fs.cwd().openFile(cpuinfo_path, .{ .mode = .read_only });
+    defer cpuinfo_file.close();
+
+    // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
+    // https://docs.kernel.org/filesystems/proc.html
+    // https://en.wikipedia.org/wiki/Procfs
+    //
+    // Only the first section (core 0) will be parsed
+    // 512 is more than enough
+    const cpuinfo_data = try utils.readFile(allocator, cpuinfo_file, 512);
     defer allocator.free(cpuinfo_data);
 
     // Parsing /proc/cpuinfo
@@ -77,6 +85,7 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
 
     var cpu_max_freq: f32 = 0.0;
 
+    // NOTE: this is the preferred approach beacause it is the most accurate
     const cpuinfo_max_freq_path = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq";
     var cmf_exists: bool = true;
 
@@ -89,14 +98,13 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
 
     if (cmf_exists) {
         // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-        var file2 = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{});
-
-        defer file2.close();
-        const cpuinfo_max_freq_data = try file2.readToEndAlloc(allocator, std.math.maxInt(usize));
-        defer allocator.free(cpuinfo_max_freq_data);
+        const maxfreq_file = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{ .mode = .read_only });
+        defer maxfreq_file.close();
+        const maxfreq_data = try utils.readFile(allocator, maxfreq_file, 32);
+        defer allocator.free(maxfreq_data);
 
         // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-        const trimmed = std.mem.trim(u8, cpuinfo_max_freq_data, " \n\r");
+        const trimmed = std.mem.trim(u8, maxfreq_data, " \n\r");
         const cpu_max_freq_khz: f32 = try std.fmt.parseFloat(f32, trimmed);
         cpu_max_freq = cpu_max_freq_khz / 1_000_000;
     } else {
@@ -203,9 +211,16 @@ fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
 pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const file = try std.fs.cwd().openFile(meminfo_path, .{});
-    defer file.close();
-    const meminfo_data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close();
+
+    // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
+    // https://docs.kernel.org/filesystems/proc.html
+    // https://en.wikipedia.org/wiki/Procfs
+    //
+    // We only need to read the first few lines
+    // 512 is more than enough
+    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
     defer allocator.free(meminfo_data);
 
     // Parsing /proc/meminfo
@@ -265,9 +280,16 @@ pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
 pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const file = try std.fs.cwd().openFile(meminfo_path, .{});
-    defer file.close();
-    const meminfo_data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close();
+
+    // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
+    // https://docs.kernel.org/filesystems/proc.html
+    // https://en.wikipedia.org/wiki/Procfs
+    //
+    // We only need to read the first few lines
+    // 512 is ok
+    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
     defer allocator.free(meminfo_data);
 
     // Parsing /proc/meminfo

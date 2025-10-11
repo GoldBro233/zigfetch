@@ -72,9 +72,10 @@ pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8,
 
     var ascii_art_data: []const u8 = undefined;
     if (ascii_art_path) |ascii| {
-        var ascii_file = try std.fs.cwd().openFile(ascii, .{});
+        const ascii_file = try std.fs.cwd().openFile(ascii, .{ .mode = .read_only });
         defer ascii_file.close();
-        ascii_art_data = try ascii_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+        const file_size = (try ascii_file.stat()).size;
+        ascii_art_data = try utils.readFile(allocator, ascii_file, file_size);
     } else {
         ascii_art_data = @embedFile("./assets/ascii/guy_fawks.txt");
     }

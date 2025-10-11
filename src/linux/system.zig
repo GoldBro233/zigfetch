@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("../utils.zig");
 const c_sysinfo = @cImport(@cInclude("sys/sysinfo.h"));
 const c_utsname = @cImport(@cInclude("sys/utsname.h"));
 
@@ -77,9 +78,10 @@ pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
 
 pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
     const os_release_path = "/etc/os-release";
-    const file = try std.fs.cwd().openFile(os_release_path, .{});
-    defer file.close();
-    const os_release_data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const os_release_file = try std.fs.cwd().openFile(os_release_path, .{ .mode = .read_only });
+    defer os_release_file.close();
+    const size = (try os_release_file.stat()).size;
+    const os_release_data = try utils.readFile(allocator, os_release_file, size);
     defer allocator.free(os_release_data);
 
     var pretty_name: ?[]const u8 = null;

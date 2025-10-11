@@ -1,5 +1,6 @@
 const std = @import("std");
 const ascii = @import("ascii.zig");
+const utils = @import("utils.zig");
 
 pub const Module = struct {
     type: []u8,
@@ -68,14 +69,16 @@ pub fn readConfigFile(allocator: std.mem.Allocator) !?std.json.Parsed(Config) {
     const config_abs_path = try std.mem.concat(allocator, u8, &.{ home, "/.config/zigfetch/config.json" });
     defer allocator.free(config_abs_path);
 
-    const file = std.fs.openFileAbsolute(config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
+    const config_file = std.fs.openFileAbsolute(config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => return err,
     };
-    defer file.close();
+    defer config_file.close();
 
-    const data = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(data);
+    const file_size = (try config_file.stat()).size;
 
-    return try std.json.parseFromSlice(Config, allocator, data, .{ .allocate = .alloc_always });
+    const config_data = try utils.readFile(allocator, config_file, file_size);
+    defer allocator.free(config_data);
+
+    return try std.json.parseFromSlice(Config, allocator, config_data, .{ .allocate = .alloc_always });
 }
