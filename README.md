@@ -35,6 +35,8 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ## Installation
 
+### Build from source
+
 ```console
 # Clone the repo
 $ git clone https://github.com/utox39/zigfetch.git
@@ -47,6 +49,12 @@ $ zig build -Doptimize=ReleaseSafe
 
 # Then move it somewhere in your $PATH. Here is an example:
 $ mv ./zig-out/zigfetch ~/bin/
+```
+
+### Via [Homebrew](https://brew.sh/)
+
+```console
+$ brew install utox39/tap/zigfetch
 ```
 
 ## Usage
