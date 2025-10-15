@@ -176,4 +176,4 @@ To change the Username and Hostname color (HEX colors only):
 
 ## Contributing
 
-If you would like to contribute to this project just create a pull request which I will try to review as soon as possible.
+Please see [CONTIBUTING](https://github.com/utox39/zigfetch/blob/main/CONTRIBUTING.md). Thanks!
