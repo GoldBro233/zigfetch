@@ -121,9 +121,8 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
             defer file.close();
 
             // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
-            var file_buf: [16]u8 = undefined;
-            const read = try file.read(&file_buf);
-            const proc_name = file_buf[0..read];
+            const proc_name = try utils.readFile(allocator, file, 16);
+            defer allocator.free(proc_name);
 
             const proc_name_trimmed = std.mem.trim(u8, proc_name, "\n");
 
