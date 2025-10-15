@@ -27,7 +27,7 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ## Requirements
 
--   \>= [zig v0.15.1](https://ziglang.org/)
+-   \>= [zig v0.15.2](https://ziglang.org/)
 
 ### Linux only
 
