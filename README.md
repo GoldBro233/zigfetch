@@ -57,6 +57,12 @@ $ mv ./zig-out/zigfetch ~/bin/
 $ brew install utox39/tap/zigfetch
 ```
 
+### Other package managers
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/zigfetch.svg)](https://repology.org/project/zigfetch/versions)
+
+- nixpkg: Thanks to [@heisfer](https://github.com/heisfer)
+
 ## Usage
 
 ```console
