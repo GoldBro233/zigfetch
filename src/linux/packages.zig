@@ -1,6 +1,6 @@
 const std = @import("std");
 
-fn countFlatpaks(allocator: std.mem.Allocator) !usize {
+fn countFlatpakPackages(allocator: std.mem.Allocator) !usize {
     // flatpak list | wc -l
     const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{
         "sh",
