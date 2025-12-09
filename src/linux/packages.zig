@@ -10,6 +10,7 @@ fn countFlatpakPackages(allocator: std.mem.Allocator) !usize {
     const result_stdout = result.stdout;
     const result_trimmed = std.mem.trim(u8, result_stdout, "\n");
     defer allocator.free(result_stdout);
+    defer allocator.free(result.stderr);
 
     return try std.fmt.parseInt(usize, result_trimmed, 10);
 }
@@ -25,6 +26,7 @@ fn countNixPackages(allocator: std.mem.Allocator) !usize {
     const result_stdout = result.stdout;
     const result_trimmed = std.mem.trim(u8, result_stdout, "\n");
     defer allocator.free(result_stdout);
+    defer allocator.free(result.stderr);
 
     return try std.fmt.parseInt(usize, result_trimmed, 10);
 }
