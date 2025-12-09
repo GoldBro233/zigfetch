@@ -50,3 +50,8 @@ fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
     // Subtruct 1 to remove an empty line
     return count - 1;
 }
+
+fn countPacmanPackages() !usize {
+    // Subtruct 1 to remove `ALPM_DB_VERSION` from the count
+    return try utils.countEntries("/var/lib/pacman/local") - 1;
+}
