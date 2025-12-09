@@ -1,5 +1,5 @@
 const std = @import("std");
-const utils = @import("utils.zig");
+const utils = @import("../utils.zig");
 
 pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
     var packages_info = std.array_list.Managed(u8).init(allocator);
