@@ -30,3 +30,23 @@ fn countNixPackages(allocator: std.mem.Allocator) !usize {
 
     return try std.fmt.parseInt(usize, result_trimmed, 10);
 }
+
+fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
+    const dpkg_status_path = "/var/lib/dpkg/status";
+    const dpkg_file = try std.fs.cwd().openFile(dpkg_status_path, .{ .mode = .read_only });
+    defer dpkg_file.close();
+    const file_size = (try dpkg_file.stat()).size;
+
+    const content = try utils.readFile(allocator, dpkg_file, file_size);
+    defer allocator.free(content);
+
+    var count: usize = 0;
+    var iter = std.mem.splitSequence(u8, content, "\n\n");
+    // TODO: find a way to avoid this loop
+    while (iter.next()) |_| {
+        count += 1;
+    }
+
+    // Subtruct 1 to remove an empty line
+    return count - 1;
+}
