@@ -1,4 +1,40 @@
 const std = @import("std");
+const utils = @import("../utils.zig");
+
+pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
+    var packages_info = std.array_list.Managed(u8).init(allocator);
+    defer packages_info.deinit();
+
+    const flatpak_packages = countFlatpakPackages(allocator) catch 0;
+    const nix_packages = countNixPackages(allocator) catch 0;
+    const dpkg_packages = countDpkgPackages(allocator) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const pacman_packages = countPacmanPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
+    const xbps_packages = countXbpsPackages(allocator) catch |err| if (err == error.FileNotFound) 0 else return err;
+
+    var buffer: [32]u8 = undefined;
+
+    if (nix_packages > 0) {
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Nix: {d}", .{nix_packages}));
+    }
+
+    if (flatpak_packages > 0) {
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Flatpak: {d}", .{flatpak_packages}));
+    }
+
+    if (dpkg_packages > 0) {
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Dpkg: {d}", .{dpkg_packages}));
+    }
+
+    if (pacman_packages > 0) {
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Pacman: {d}", .{pacman_packages}));
+    }
+
+    if (xbps_packages > 0) {
+        try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Xbps: {d}", .{xbps_packages}));
+    }
+
+    return try allocator.dupe(u8, packages_info.items);
+}
 
 fn countFlatpakPackages(allocator: std.mem.Allocator) !usize {
     // flatpak list | wc -l

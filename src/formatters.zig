@@ -100,13 +100,9 @@ pub fn getDefaultFormattedPackagesInfo(allocator: std.mem.Allocator) !Result {
 }
 
 pub fn getFormattedPackagesInfo(allocator: std.mem.Allocator, key: []const u8, key_color: []const u8) !Result {
-    if (builtin.os.tag == .macos) {
-        const packages_info = try detection.packages.getPackagesInfo(allocator);
-        defer allocator.free(packages_info);
-        return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s}{s}", .{ key_color, key, ascii.Reset, packages_info }) };
-    } else if (builtin.os.tag == .linux) {
-        return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} WIP", .{ key_color, key, ascii.Reset }) };
-    }
+    const packages_info = try detection.packages.getPackagesInfo(allocator);
+    defer allocator.free(packages_info);
+    return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s}{s}", .{ key_color, key, ascii.Reset, packages_info }) };
 }
 
 pub fn getDefaultFormattedShellInfo(allocator: std.mem.Allocator) !Result {
