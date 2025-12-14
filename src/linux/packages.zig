@@ -55,3 +55,34 @@ fn countPacmanPackages() !usize {
     // Subtruct 1 to remove `ALPM_DB_VERSION` from the count
     return try utils.countEntries("/var/lib/pacman/local") - 1;
 }
+
+fn countXbpsPackages(allocator: std.mem.Allocator) !usize {
+    var dir = try std.fs.openDirAbsolute("/var/db/xbps/", .{ .iterate = true });
+    defer dir.close();
+
+    var count: usize = 0;
+
+    var dir_iter = dir.iterate();
+
+    while (try dir_iter.next()) |e| {
+        if ((e.kind == .file) and std.mem.startsWith(u8, e.name, "pkgdb-")) {
+            const pkgdb_file = try dir.openFile(e.name, .{ .mode = .read_only });
+            defer pkgdb_file.close();
+            const file_size = (try pkgdb_file.stat()).size;
+
+            const content = try utils.readFile(allocator, pkgdb_file, file_size);
+            defer allocator.free(content);
+
+            var file_iter = std.mem.splitSequence(u8, content, "<string>installed</string>");
+            // TODO: find a way to avoid this loop
+            while (file_iter.next()) |_| {
+                count += 1;
+            }
+
+            break;
+        }
+    }
+
+    // Subtruct 1 to remove an useless line
+    return count - 1;
+}
