@@ -5,7 +5,7 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
     var packages_info = std.array_list.Managed(u8).init(allocator);
     defer packages_info.deinit();
 
-    const flatpak_packages = countFlatpakPackages(allocator) catch 0;
+    const flatpak_packages = countFlatpakPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
     const nix_packages = countNixPackages(allocator) catch 0;
     const dpkg_packages = countDpkgPackages(allocator) catch |err| if (err == error.FileNotFound) 0 else return err;
     const pacman_packages = countPacmanPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
@@ -36,19 +36,64 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
     return try allocator.dupe(u8, packages_info.items);
 }
 
-fn countFlatpakPackages(allocator: std.mem.Allocator) !usize {
-    // flatpak list | wc -l
-    const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{
-        "sh",
-        "-c",
-        "flatpak list | wc -l",
-    } });
-    const result_stdout = result.stdout;
-    const result_trimmed = std.mem.trim(u8, result_stdout, "\n");
-    defer allocator.free(result_stdout);
-    defer allocator.free(result.stderr);
+fn countFlatpakPackages() !usize {
+    const flatpak_apps = try countFlatpakApps();
+    const flatpak_runtimes = try countFlatpakRuntimes();
 
-    return try std.fmt.parseInt(usize, result_trimmed, 10);
+    return flatpak_apps + flatpak_runtimes;
+}
+
+fn countFlatpakApps() !usize {
+    var dir = try std.fs.openDirAbsolute("/var/lib/flatpak/app/", .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+
+    var count: usize = 0;
+
+    while (try iter.next()) |e| {
+        if (e.kind != .directory) continue;
+
+        var sub_dir = try dir.openDir(e.name, .{});
+        defer sub_dir.close();
+
+        var current = sub_dir.openDir("current", .{}) catch continue;
+        defer current.close();
+
+        // If `current` was opened successfully, increment the count
+        count += 1;
+    }
+
+    return count;
+}
+
+fn countFlatpakRuntimes() !usize {
+    var dir = try std.fs.openDirAbsolute("/var/lib/flatpak/runtime/", .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+
+    var counter: usize = 0;
+
+    while (try iter.next()) |e| {
+        if (std.mem.endsWith(u8, e.name, ".Locale") or std.mem.endsWith(u8, e.name, ".Debug")) continue;
+
+        var arch_dir = try dir.openDir(e.name, .{ .iterate = true });
+        defer arch_dir.close();
+        var arch_iter = arch_dir.iterate();
+        while (try arch_iter.next()) |arch_e| {
+            if (arch_e.kind != .directory) continue;
+
+            var sub_dir = try arch_dir.openDir(arch_e.name, .{ .iterate = true });
+            defer sub_dir.close();
+            var sub_iter = sub_dir.iterate();
+            while (try sub_iter.next()) |_| {
+                counter += 1;
+            }
+        }
+    }
+
+    return counter;
 }
 
 fn countNixPackages(allocator: std.mem.Allocator) !usize {
