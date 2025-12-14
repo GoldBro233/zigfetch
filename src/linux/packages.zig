@@ -47,7 +47,7 @@ fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
         count += 1;
     }
 
-    // Subtruct 1 to remove an empty line
+    // Subtruct 1 to remove an useless line
     return count - 1;
 }
 
