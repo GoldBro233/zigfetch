@@ -97,19 +97,92 @@ fn countFlatpakRuntimes() !usize {
 }
 
 fn countNixPackages(allocator: std.mem.Allocator) !usize {
-    // nix-store --query --requisites /run/current-system | wc -l
-    const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{
-        "sh",
-        "-c",
-        "nix-store --query --requisites /run/current-system | wc -l",
-    } });
+    // `/run/current-system` is a sym-link, so we need to obtein the real path
+    const real_path = try std.fs.realpathAlloc(allocator, "/run/current-system");
+    defer allocator.free(real_path);
 
-    const result_stdout = result.stdout;
-    const result_trimmed = std.mem.trim(u8, result_stdout, "\n");
-    defer allocator.free(result_stdout);
-    defer allocator.free(result.stderr);
+    var hash: [32]u8 = undefined;
+    std.crypto.hash.Blake3.hash(real_path, &hash, .{});
+    const hash_hex = try std.fmt.allocPrint(allocator, "{x}", .{hash});
+    defer allocator.free(hash_hex);
 
-    return try std.fmt.parseInt(usize, result_trimmed, 10);
+    var count: usize = 0;
+
+    // Inspired by https://github.com/fastfetch-cli/fastfetch/blob/608382109cda6623e53f318e8aced54cf8e5a042/src/detection/packages/packages_nix.c#L81
+    count = checkNixCache(allocator, hash_hex) catch |err| switch (err) {
+        error.FileNotFound, error.InvalidCache => {
+            // nix-store --query --requisites /run/current-system | wc -l
+            const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{
+                "sh",
+                "-c",
+                "nix-store --query --requisites /run/current-system | wc -l",
+            } });
+
+            const result_trimmed = std.mem.trim(u8, result.stdout, "\n");
+            defer allocator.free(result.stdout);
+            defer allocator.free(result.stderr);
+
+            count = try std.fmt.parseInt(usize, result_trimmed, 10);
+
+            try writeNixCache(allocator, hash_hex, count);
+
+            return count;
+        },
+        else => return err,
+    };
+
+    return count;
+}
+
+fn getNixCachePath(allocator: std.mem.Allocator) ![]const u8 {
+    var cache_dir_path = std.process.getEnvVarOwned(allocator, "XDG_CACHE_HOME") catch try allocator.dupe(u8, "");
+    if (cache_dir_path.len == 0) {
+        allocator.free(cache_dir_path);
+        const home = try std.process.getEnvVarOwned(allocator, "HOME");
+        defer allocator.free(home);
+        cache_dir_path = try std.fs.path.join(allocator, &.{ home, ".cache", "zigfetch", "nix" });
+    } else {
+        cache_dir_path = try std.fs.path.join(allocator, &.{ cache_dir_path, "zigfetch", "nix" });
+    }
+
+    return cache_dir_path;
+}
+
+fn writeNixCache(allocator: std.mem.Allocator, hash: []const u8, count: usize) !void {
+    const cache_dir_path = try getNixCachePath(allocator);
+    defer allocator.free(cache_dir_path);
+
+    try std.fs.cwd().makePath(cache_dir_path);
+    var cache_dir = try std.fs.cwd().openDir(cache_dir_path, .{});
+    defer cache_dir.close();
+    var cache_file = try cache_dir.createFile("nix_cache", .{ .truncate = true });
+    defer cache_file.close();
+
+    const cache_content = try std.fmt.allocPrint(allocator, "{s}\n{d}", .{ hash, count });
+    defer allocator.free(cache_content);
+    try cache_file.writeAll(cache_content);
+}
+
+fn checkNixCache(allocator: std.mem.Allocator, hash: []const u8) !usize {
+    const cache_dir_path = try getNixCachePath(allocator);
+    defer allocator.free(cache_dir_path);
+    var cache_dir = try std.fs.cwd().openDir(cache_dir_path, .{});
+    defer cache_dir.close();
+
+    var cache_file = try cache_dir.openFile("nix_cache", .{ .mode = .read_only });
+    const cache_size = (try cache_file.stat()).size;
+    const cache_content = try utils.readFile(allocator, cache_file, cache_size);
+    defer allocator.free(cache_content);
+
+    var cache_iter = std.mem.splitScalar(u8, cache_content, '\n');
+
+    const hash_needle = cache_iter.next().?;
+    if (!std.mem.eql(u8, hash, hash_needle)) {
+        return error.InvalidCache;
+    }
+
+    // The next element in the split is the package count
+    return std.fmt.parseInt(usize, cache_iter.next().?, 10);
 }
 
 fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
