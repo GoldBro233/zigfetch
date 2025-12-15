@@ -118,7 +118,7 @@ Available modules:
 |     os      |       Yes       |           Yes            |   WIP   |
 |   kernel    |       Yes       |           Yes            |   WIP   |
 |   uptime    |       Yes       |           Yes            |   WIP   |
-|  packages   |       Yes*       | Yes (Homebrew, Macports) |   WIP   |
+|  packages   |       Yes*      | Yes (Homebrew, Macports) |   WIP   |
 |    shell    | Yes (bash, zsh) |     Yes (bash, zsh)      |   WIP   |
 |     cpu     |       Yes       |           Yes            |   WIP   |
 |     gpu     |       Yes       | Yes (Apple Silicon only) |   WIP   |
