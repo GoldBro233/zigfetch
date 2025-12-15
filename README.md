@@ -118,7 +118,7 @@ Available modules:
 |     os      |       Yes       |           Yes            |   WIP   |
 |   kernel    |       Yes       |           Yes            |   WIP   |
 |   uptime    |       Yes       |           Yes            |   WIP   |
-|  packages   |       WIP       | Yes (Homebrew, Macports) |   WIP   |
+|  packages   |       Yes*       | Yes (Homebrew, Macports) |   WIP   |
 |    shell    | Yes (bash, zsh) |     Yes (bash, zsh)      |   WIP   |
 |     cpu     |       Yes       |           Yes            |   WIP   |
 |     gpu     |       Yes       | Yes (Apple Silicon only) |   WIP   |
@@ -129,6 +129,8 @@ Available modules:
 |     wm      |       Yes       |           Yes            |   WIP   |
 |  terminal   |       Yes       |           Yes            |   WIP   |
 |   locale    |       Yes       |           Yes            |   WIP   |
+
+\*(flatpak, nix, dpkg, pacman, xbps)
 
 ```json
   "modules": [
