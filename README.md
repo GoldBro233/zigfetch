@@ -13,13 +13,13 @@
 
 ---
 
--   [Description](#description)
--   [Requirements](#requirements)
--   [Installation](#installation)
--   [Usage](#usage)
-    -   [Configuration](#configuration)
--   [Roadtrip](#roadtrip)
--   [Contributing](#contributing)
+- [Description](#description)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Configuration](#configuration)
+- [Roadtrip](#roadtrip)
+- [Contributing](#contributing)
 
 ## Description
 
@@ -27,11 +27,11 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ## Requirements
 
--   \>= [zig v0.15.2](https://ziglang.org/)
+- \>= [zig v0.15.2](https://ziglang.org/)
 
 ### Linux only
 
--   [libpci](https://github.com/pciutils/pciutils)
+- [libpci](https://github.com/pciutils/pciutils)
 
 ## Installation
 
@@ -54,7 +54,7 @@ $ mv ./zig-out/zigfetch ~/bin/
 ### Via [Homebrew](https://brew.sh/)
 
 ```console
-$ brew install utox39/tap/zigfetch
+brew install utox39/tap/zigfetch
 ```
 
 ### Other package managers
@@ -66,7 +66,7 @@ $ brew install utox39/tap/zigfetch
 ## Usage
 
 ```console
-$ zigfetch
+zigfetch
 ```
 
 ### Configuration
@@ -74,44 +74,44 @@ $ zigfetch
 > [!IMPORTANT]
 > Currently, Zig does not have a built-in library for JSON validation via JSON schema, so it is very important to follow the pattern shown in the default configuration file ([config.json](https://github.com/utox39/zigfetch/blob/main/config.json)) to avoid errors
 
--   Create the config folder
+- Create the config folder
 
 ```console
-$ mkdir -p ~/.config/zigfetch
+mkdir -p ~/.config/zigfetch
 ```
 
--   Create the config file
+- Create the config file
 
 ```console
-$ cd ~/.config/zigfetch
-$ touch config.json
+cd ~/.config/zigfetch
+touch config.json
 ```
 
--   Or copy the default config (preferred way)
+- Or copy the default config (preferred way)
 
 ```console
-$ cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
+cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
 ```
 
 #### Modules
 
 Available modules:
 
--   Os
--   Kernel
--   Uptime
--   Packages
--   Shell
--   Cpu
--   Gpu
--   Ram
--   Swap
--   Disk
--   Net
--   WM (Window Manager)
--   Terminal
--   Locale
--   Custom
+- Os
+- Kernel
+- Uptime
+- Packages
+- Shell
+- Cpu
+- Gpu
+- Ram
+- Swap
+- Disk
+- Net
+- WM (Window Manager)
+- Terminal
+- Locale
+- Custom
 
 | Module type |      Linux      |          macOS           | Windows |
 | :---------: | :-------------: | :----------------------: | :-----: |
@@ -176,11 +176,11 @@ To change the Username and Hostname color (HEX colors only):
 
 ## Roadtrip
 
--   [ ] Add ASCII art for each operating system and Linux distro
--   [x] Add GPU info for Linux
--   [ ] Add packages info for Linux
--   [x] Add user customization
--   [ ] Add support for Windows
+- [ ] Add ASCII art for each operating system and Linux distro
+- [x] Add GPU info for Linux
+- [x] Add packages info for Linux
+- [x] Add user customization
+- [ ] Add support for Windows
 
 ## Contributing
 
