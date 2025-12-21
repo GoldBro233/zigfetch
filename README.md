@@ -37,7 +37,7 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ### Build from source
 
-```console
+```bash
 # Clone the repo
 $ git clone https://github.com/utox39/zigfetch.git
 
@@ -53,7 +53,7 @@ $ mv ./zig-out/zigfetch ~/bin/
 
 ### Via [Homebrew](https://brew.sh/)
 
-```console
+```bash
 brew install utox39/tap/zigfetch
 ```
 
@@ -65,7 +65,7 @@ brew install utox39/tap/zigfetch
 
 ## Usage
 
-```console
+```bash
 zigfetch
 ```
 
@@ -76,20 +76,20 @@ zigfetch
 
 - Create the config folder
 
-```console
+```bash
 mkdir -p ~/.config/zigfetch
 ```
 
 - Create the config file
 
-```console
+```bash
 cd ~/.config/zigfetch
 touch config.json
 ```
 
 - Or copy the default config (preferred way)
 
-```console
+```bash
 cp /path/to/zigfetch/config.json ~/.config/zigfetch/config.json
 ```
 
