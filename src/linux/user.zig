@@ -34,8 +34,8 @@ fn parseBashVersion(shell_version_output: []u8) ?[]u8 {
     return shell_version_output[version_keyword_index.? + version_keyword.len .. end_index.?];
 }
 
-pub fn getTerminalName(allocator: std.mem.Allocator) ![]u8 {
-    const term_program = std.process.getEnvVarOwned(allocator, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
+pub fn getTerminalName(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const term_program = std.process.Environ.getAlloc(environ, allocator, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
         return allocator.dupe(u8, "Unknown");
     } else return err;
     return term_program;
