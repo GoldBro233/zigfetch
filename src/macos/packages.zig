@@ -1,13 +1,13 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
 
-pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
+pub fn getPackagesInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var packages_info = std.array_list.Managed(u8).init(allocator);
     defer packages_info.deinit();
 
-    const homebrew_packages = countHomebrewPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
-    const homebrew_casks = countHomebrewCasks() catch |err| if (err == error.FileNotFound) 0 else return err;
-    const macports_packages = countMacportPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
+    const homebrew_packages = countHomebrewPackages(io) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const homebrew_casks = countHomebrewCasks(io) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const macports_packages = countMacportPackages(io) catch |err| if (err == error.FileNotFound) 0 else return err;
 
     var buffer: [32]u8 = undefined;
 
@@ -26,14 +26,14 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
     return try allocator.dupe(u8, packages_info.items);
 }
 
-fn countHomebrewPackages() !usize {
-    return try utils.countEntries("/opt/homebrew/Cellar");
+fn countHomebrewPackages(io: std.Io) !usize {
+    return try utils.countEntries(io, "/opt/homebrew/Cellar");
 }
 
-fn countHomebrewCasks() !usize {
-    return try utils.countEntries("/opt/homebrew/Caskroom");
+fn countHomebrewCasks(io: std.Io) !usize {
+    return try utils.countEntries(io, "/opt/homebrew/Caskroom");
 }
 
-fn countMacportPackages() !usize {
-    return try utils.countEntries("/opt/local/bin");
+fn countMacportPackages(io: std.Io) !usize {
+    return try utils.countEntries(io, "/opt/local/bin");
 }

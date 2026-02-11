@@ -9,7 +9,7 @@ pub const TermSize = struct {
 pub fn getTerminalSize() !TermSize {
     // https://github.com/softprops/zig-termsize (https://github.com/softprops/zig-termsize/blob/main/src/main.zig)
 
-    const stdout = std.fs.File.stdout();
+    const stdout = std.Io.File.stdout();
 
     switch (builtin.os.tag) {
         .windows => {
@@ -126,14 +126,14 @@ pub fn readFile(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, siz
     return allocator.dupe(u8, data);
 }
 
-pub fn countEntries(dir_path: []const u8) !usize {
-    var dir = try std.fs.openDirAbsolute(dir_path, .{ .iterate = true });
-    defer dir.close();
+pub fn countEntries(io: std.Io, dir_path: []const u8) !usize {
+    var dir = try std.Io.Dir.openDirAbsolute(io, dir_path, .{ .iterate = true });
+    defer dir.close(io);
 
     var count: usize = 0;
     var iter = dir.iterate();
 
-    while (try iter.next()) |_| {
+    while (try iter.next(io)) |_| {
         count += 1;
     }
 
