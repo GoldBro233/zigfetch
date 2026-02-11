@@ -65,17 +65,17 @@ test "parse ffffff" {
     try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
 }
 
-pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
+pub fn printAsciiAndModules(allocator: std.mem.Allocator, io: std.Io, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
     var stdout_buffer: [2048]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+    var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout = &stdout_file_writer.interface;
 
     var ascii_art_data: []const u8 = undefined;
     if (ascii_art_path) |ascii| {
-        const ascii_file = try std.fs.cwd().openFile(ascii, .{ .mode = .read_only });
-        defer ascii_file.close();
-        const file_size = (try ascii_file.stat()).size;
-        ascii_art_data = try utils.readFile(allocator, ascii_file, file_size);
+        const ascii_file = try std.Io.Dir.cwd().openFile(io, ascii, .{ .mode = .read_only });
+        defer ascii_file.close(io);
+        const file_size = (try ascii_file.stat(io)).size;
+        ascii_art_data = try utils.readFile(allocator, io, ascii_file, file_size);
     } else {
         ascii_art_data = @embedFile("./assets/ascii/guy_fawks.txt");
     }
