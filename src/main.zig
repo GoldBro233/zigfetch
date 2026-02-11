@@ -5,8 +5,10 @@ const ascii = @import("ascii.zig");
 const config = @import("config.zig");
 const formatters = @import("formatters.zig");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // TODO: rename all the paramenters 'allocator' in 'gpa'
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
@@ -19,13 +21,13 @@ pub fn main() !void {
         }
     }
 
-    const conf = try config.readConfigFile(allocator);
+    const conf = try config.readConfigFile(allocator, io);
     defer if (conf) |c| c.deinit();
 
     const modules_types = try config.getModulesTypes(allocator, conf);
     defer modules_types.deinit();
 
-    const username = try detection.user.getUsername(allocator);
+    const username = try detection.user.getUsername(allocator, init.minimal.environ);
     const hostname = try detection.system.getHostname(allocator);
 
     const username_hostname_color = if (config.getUsernameHostnameColor(conf)) |color| blk: {
@@ -71,5 +73,7 @@ pub fn main() !void {
         }
     }
 
-    try ascii.printAsciiAndModules(allocator, config.getAsciiPath(conf), modules_list);
+    // TODO: rename ascii.zig in display.zig
+    // TODO: return the formatted ascii and modules to print instead of directly print them
+    try ascii.printAsciiAndModules(allocator, io, config.getAsciiPath(conf), modules_list);
 }
