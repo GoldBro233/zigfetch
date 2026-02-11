@@ -4,14 +4,14 @@ pub fn getUsername(allocator: std.mem.Allocator, environ: std.process.Environ) !
     return try std.process.Environ.getAlloc(environ, allocator, "USER");
 }
 
-pub fn getShell(allocator: std.mem.Allocator) ![]u8 {
-    const shell = std.process.getEnvVarOwned(allocator, "SHELL") catch |err| if (err == error.EnvironmentVariableNotFound) {
+pub fn getShell(allocator: std.mem.Allocator, io: std.Io, environ: std.process.Environ) ![]u8 {
+    const shell = std.process.Environ.getAlloc(environ, allocator, "SHELL") catch |err| if (err == error.EnvironmentVariableNotFound) {
         return allocator.dupe(u8, "Unknown");
     } else return err;
 
     defer allocator.free(shell);
 
-    const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{ shell, "--version" } });
+    const result = try std.process.run(allocator, io, .{ .argv = &[_][]const u8{ shell, "--version" } });
     const result_stdout = result.stdout;
 
     if (std.mem.indexOf(u8, shell, "bash") != null) {
