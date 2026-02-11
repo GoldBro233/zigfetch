@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const detection = @import("detection.zig").os_module;
-const ascii = @import("ascii.zig");
+const display = @import("display.zig");
 const config = @import("config.zig");
 const formatters = @import("formatters.zig");
 
@@ -32,10 +32,10 @@ pub fn main(init: std.process.Init) !void {
 
     const username_hostname_color = if (config.getUsernameHostnameColor(conf)) |color| blk: {
         var buf: [32]u8 = undefined;
-        const rgb = try ascii.hexColorToRgb(color);
+        const rgb = try display.hexColorToRgb(color);
         const formatted_color = try std.fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
         break :blk formatted_color;
-    } else ascii.Yellow;
+    } else display.Yellow;
 
     try modules_list.append(try formatters.getFormattedUsernameHostname(allocator, username_hostname_color, username, hostname));
     allocator.free(hostname);
@@ -59,7 +59,7 @@ pub fn main(init: std.process.Init) !void {
     } else if (conf) |c| {
         for (modules_types.items, c.value.modules) |module_type, module| {
             var buf: [32]u8 = undefined;
-            const rgb = try ascii.hexColorToRgb(module.key_color);
+            const rgb = try display.hexColorToRgb(module.key_color);
             const key_color = try std.fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 
             const result = try formatters.formatters[@intFromEnum(module_type)](allocator, module.key, key_color);
@@ -75,5 +75,5 @@ pub fn main(init: std.process.Init) !void {
 
     // TODO: rename ascii.zig in display.zig
     // TODO: return the formatted ascii and modules to print instead of directly print them
-    try ascii.printAsciiAndModules(allocator, io, config.getAsciiPath(conf), modules_list);
+    try display.printAsciiAndModules(allocator, io, config.getAsciiPath(conf), modules_list);
 }

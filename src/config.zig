@@ -1,5 +1,5 @@
 const std = @import("std");
-const ascii = @import("ascii.zig");
+const display = @import("display.zig");
 const utils = @import("utils.zig");
 
 pub const Module = struct {
