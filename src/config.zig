@@ -62,22 +62,22 @@ pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Co
     return modules_list;
 }
 
-pub fn readConfigFile(allocator: std.mem.Allocator) !?std.json.Parsed(Config) {
-    const home = try std.process.getEnvVarOwned(allocator, "HOME");
+pub fn readConfigFile(allocator: std.mem.Allocator, io: std.Io, environ: std.process.Environ) !?std.json.Parsed(Config) {
+    const home = try std.process.Environ.getAlloc(environ, allocator, "HOME");
     defer allocator.free(home);
 
     const config_abs_path = try std.mem.concat(allocator, u8, &.{ home, "/.config/zigfetch/config.json" });
     defer allocator.free(config_abs_path);
 
-    const config_file = std.fs.openFileAbsolute(config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
+    const config_file = std.Io.Dir.openFileAbsolute(io, config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => return err,
     };
-    defer config_file.close();
+    defer config_file.close(io);
 
-    const file_size = (try config_file.stat()).size;
+    const file_size = (try config_file.stat(io)).size;
 
-    const config_data = try utils.readFile(allocator, config_file, file_size);
+    const config_data = try utils.readFile(allocator, io, config_file, file_size);
     defer allocator.free(config_data);
 
     return try std.json.parseFromSlice(Config, allocator, config_data, .{ .allocate = .alloc_always });

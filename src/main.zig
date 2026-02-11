@@ -21,7 +21,7 @@ pub fn main(init: std.process.Init) !void {
         }
     }
 
-    const conf = try config.readConfigFile(allocator, io);
+    const conf = try config.readConfigFile(allocator, io, init.minimal.environ);
     defer if (conf) |c| c.deinit();
 
     const modules_types = try config.getModulesTypes(allocator, conf);
