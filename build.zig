@@ -25,13 +25,11 @@ pub fn build(b: *std.Build) void {
     });
 
     if (target.result.os.tag == .macos) {
-        exe.linkFramework("CoreFoundation");
-        exe.linkFramework("IOKit");
-    }
-
-    if (target.result.os.tag == .linux) {
-        exe.linkLibC();
-        exe.linkSystemLibrary("pci");
+        exe.root_module.linkFramework("CoreFoundation", .{ .needed = true });
+        exe.root_module.linkFramework("IOKit", .{ .needed = true });
+    } else if (target.result.os.tag == .linux) {
+        exe.root_module.link_libc = true;
+        exe.root_module.linkSystemLibrary("pci", .{ .needed = true });
     }
 
     // This declares intent for the executable to be installed into the
