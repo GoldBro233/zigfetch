@@ -40,12 +40,12 @@ pub const DiskInfo = struct {
     disk_usage_percentage: u8,
 };
 
-pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
+pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     const cpu_cores = c_unistd.sysconf(c_unistd._SC_NPROCESSORS_ONLN);
 
     // Reads /proc/cpuinfo
     const cpuinfo_path = "/proc/cpuinfo";
-    const cpuinfo_file = try std.fs.cwd().openFile(cpuinfo_path, .{ .mode = .read_only });
+    const cpuinfo_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_path, .{ .mode = .read_only });
     defer cpuinfo_file.close();
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
@@ -98,7 +98,7 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
 
     if (cmf_exists) {
         // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-        const maxfreq_file = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{ .mode = .read_only });
+        const maxfreq_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_max_freq_path, .{ .mode = .read_only });
         defer maxfreq_file.close();
         const maxfreq_data = try utils.readFile(allocator, maxfreq_file, 32);
         defer allocator.free(maxfreq_data);
@@ -208,11 +208,11 @@ fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
     return null;
 }
 
-pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
+pub fn getRamInfo(allocator: std.mem.Allocator, io: std.Io) !RamInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
-    defer meminfo_file.close();
+    const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -220,7 +220,7 @@ pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
     //
     // We only need to read the first few lines
     // 512 is more than enough
-    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
+    const meminfo_data = try utils.readFile(allocator, io, meminfo_file, 512);
     defer allocator.free(meminfo_data);
 
     // Parsing /proc/meminfo
@@ -277,11 +277,11 @@ pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
     };
 }
 
-pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
+pub fn getSwapInfo(allocator: std.mem.Allocator, io: std.Io) !?SwapInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
-    defer meminfo_file.close();
+    const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -289,7 +289,7 @@ pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
     //
     // We only need to read the first few lines
     // 512 is ok
-    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
+    const meminfo_data = try utils.readFile(allocator, io, meminfo_file, 512);
     defer allocator.free(meminfo_data);
 
     // Parsing /proc/meminfo
