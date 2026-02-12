@@ -45,9 +45,15 @@ pub fn main(init: std.process.Init) !void {
     @memset(separtor_buffer, '-');
     try modules_list.append(separtor_buffer);
 
+    const fmt_ctx = formatters.FormatterContext{
+        .gpa = allocator,
+        .environ = init.minimal.environ,
+        .io = init.io,
+    };
+
     if (modules_types.items.len == 0) {
         inline for (0..formatters.default_formatters.len) |i| {
-            const result = try formatters.default_formatters[i](allocator);
+            const result = try formatters.default_formatters[i](fmt_ctx);
             switch (result) {
                 .string => |r| try modules_list.append(r),
                 .string_arraylist => |r| {
@@ -62,7 +68,7 @@ pub fn main(init: std.process.Init) !void {
             const rgb = try display.hexColorToRgb(module.key_color);
             const key_color = try std.fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 
-            const result = try formatters.formatters[@intFromEnum(module_type)](allocator, module.key, key_color);
+            const result = try formatters.formatters[@intFromEnum(module_type)](fmt_ctx, module.key, key_color);
             switch (result) {
                 .string => |r| try modules_list.append(r),
                 .string_arraylist => |r| {
@@ -73,7 +79,6 @@ pub fn main(init: std.process.Init) !void {
         }
     }
 
-    // TODO: rename ascii.zig in display.zig
     // TODO: return the formatted ascii and modules to print instead of directly print them
     try display.printAsciiAndModules(allocator, io, config.getAsciiPath(conf), modules_list);
 }
