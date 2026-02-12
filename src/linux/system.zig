@@ -76,12 +76,12 @@ pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
     };
 }
 
-pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
+pub fn getOsInfo(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
     const os_release_path = "/etc/os-release";
-    const os_release_file = try std.fs.cwd().openFile(os_release_path, .{ .mode = .read_only });
-    defer os_release_file.close();
-    const size = (try os_release_file.stat()).size;
-    const os_release_data = try utils.readFile(allocator, os_release_file, size);
+    const os_release_file = try std.Io.Dir.cwd().openFile(io, os_release_path, .{ .mode = .read_only });
+    defer os_release_file.close(io);
+    const size = (try os_release_file.stat(io)).size;
+    const os_release_data = try utils.readFile(allocator, io, os_release_file, size);
     defer allocator.free(os_release_data);
 
     var pretty_name: ?[]const u8 = null;
@@ -101,8 +101,8 @@ pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
     return try allocator.dupe(u8, pretty_name orelse "Unknown");
 }
 
-pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
-    var dir = try std.fs.cwd().openDir("/proc/", .{ .iterate = true });
+pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+    var dir = try std.Io.Dir.cwd().openFile(io, "/proc/", .{ .iterate = true });
     defer dir.close();
 
     var wm_name: ?[]const u8 = null;
@@ -117,7 +117,7 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
 
             var buf: [1024]u8 = undefined;
             const file_name = try std.fmt.bufPrint(&buf, "/proc/{s}/comm", .{entry.name});
-            const file = try std.fs.cwd().openFile(file_name, .{ .mode = .read_only });
+            const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });
             defer file.close();
 
             // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
