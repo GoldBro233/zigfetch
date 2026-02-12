@@ -86,8 +86,9 @@ pub fn getDefaultFormattedOsInfo(fmt_ctx: FormatterContext) !Result {
 
 pub fn getFormattedOsInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
+    const io = fmt_ctx.io;
 
-    const os_info = try detection.system.getOsInfo(allocator);
+    const os_info = if (builtin.os.tag == .macos) try detection.system.getOsInfo(allocator) else if (builtin.os.tag == .linux) try detection.system.getOsInfo(allocator, io);
     defer allocator.free(os_info);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{
         key_color,
@@ -141,8 +142,9 @@ pub fn getDefaultFormattedPackagesInfo(fmt_ctx: FormatterContext) !Result {
 pub fn getFormattedPackagesInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
     const io = fmt_ctx.io;
+    const environ = fmt_ctx.environ;
 
-    const packages_info = try detection.packages.getPackagesInfo(allocator, io);
+    const packages_info = if (builtin.os.tag == .macos) try detection.packages.getPackagesInfo(allocator, io) else if (builtin.os.tag == .linux) try detection.packages.getPackagesInfo(allocator, io, environ);
     defer allocator.free(packages_info);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s}{s}", .{
         key_color,
@@ -177,8 +179,9 @@ pub fn getDefaultFormattedCpuInfo(fmt_ctx: FormatterContext) !Result {
 
 pub fn getFormattedCpuInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
+    const io = fmt_ctx.io;
 
-    const cpu_info = try detection.hardware.getCpuInfo(allocator);
+    const cpu_info = if (builtin.os.tag == .macos) try detection.hardware.getCpuInfo(allocator) else if (builtin.os.tag == .linux) try detection.hardware.getCpuInfo(allocator, io);
     defer allocator.free(cpu_info.cpu_name);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s} ({}) @ {d:.2} GHz", .{
         key_color,
@@ -247,8 +250,9 @@ pub fn getDefaultFormattedRamInfo(fmt_ctx: FormatterContext) !Result {
 
 pub fn getFormattedRamInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
+    const io = fmt_ctx.io;
 
-    const ram_info = if (builtin.os.tag == .macos) try detection.hardware.getRamInfo() else if (builtin.os.tag == .linux) try detection.hardware.getRamInfo(allocator);
+    const ram_info = if (builtin.os.tag == .macos) try detection.hardware.getRamInfo() else if (builtin.os.tag == .linux) try detection.hardware.getRamInfo(allocator, io);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{
         key_color,
         key,
@@ -265,8 +269,9 @@ pub fn getDefaultFormattedSwapInfo(fmt_ctx: FormatterContext) !Result {
 
 pub fn getFormattedSwapInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
+    const io = fmt_ctx.io;
 
-    const swap_info = if (builtin.os.tag == .macos) try detection.hardware.getSwapInfo() else if (builtin.os.tag == .linux) try detection.hardware.getSwapInfo(allocator);
+    const swap_info = if (builtin.os.tag == .macos) try detection.hardware.getSwapInfo() else if (builtin.os.tag == .linux) try detection.hardware.getSwapInfo(allocator, io);
     if (swap_info) |s| {
         return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {d:.2} / {d:.2} GiB ({}%)", .{
             key_color,
@@ -306,8 +311,9 @@ pub fn getDefaultFormattedWindowManagerInfo(fmt_ctx: FormatterContext) !Result {
 
 pub fn getFormattedWindowManagerInfo(fmt_ctx: FormatterContext, key: []const u8, key_color: []const u8) !Result {
     const allocator = fmt_ctx.gpa;
+    const io = fmt_ctx.io;
 
-    const wm = try detection.system.getWindowManagerInfo(allocator);
+    const wm = if (builtin.os.tag == .macos) try detection.system.getWindowManagerInfo(allocator) else if (builtin.os.tag == .linux) try detection.system.getWindowManagerInfo(allocator, io);
     defer allocator.free(wm);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {s}", .{ key_color, key, display.Reset, wm }) };
 }
