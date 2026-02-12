@@ -25,8 +25,8 @@ pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
     return hostname;
 }
 
-pub fn getLocale(allocator: std.mem.Allocator) ![]u8 {
-    const locale = std.process.getEnvVarOwned(allocator, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
+pub fn getLocale(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const locale = std.process.Environ.getAlloc(environ, allocator, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
         return allocator.dupe(u8, "Unknown");
     } else return err;
     return locale;
@@ -102,14 +102,14 @@ pub fn getOsInfo(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
 }
 
 pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
-    var dir = try std.Io.Dir.cwd().openFile(io, "/proc/", .{ .iterate = true });
-    defer dir.close();
+    var dir = try std.Io.Dir.cwd().openDir(io, "/proc/", .{ .iterate = true });
+    defer dir.close(io);
 
     var wm_name: ?[]const u8 = null;
 
     var iter = dir.iterate();
     wm_name = outer: {
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             if (entry.kind != .directory) continue;
 
             // Check if the entry name is numeric
@@ -118,10 +118,10 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u
             var buf: [1024]u8 = undefined;
             const file_name = try std.fmt.bufPrint(&buf, "/proc/{s}/comm", .{entry.name});
             const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });
-            defer file.close();
+            defer file.close(io);
 
             // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
-            const proc_name = try utils.readFile(allocator, file, 16);
+            const proc_name = try utils.readFile(allocator, io, file, 16);
             defer allocator.free(proc_name);
 
             const proc_name_trimmed = std.mem.trim(u8, proc_name, "\n");
