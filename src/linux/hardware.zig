@@ -46,7 +46,7 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     // Reads /proc/cpuinfo
     const cpuinfo_path = "/proc/cpuinfo";
     const cpuinfo_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_path, .{ .mode = .read_only });
-    defer cpuinfo_file.close();
+    defer cpuinfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -54,7 +54,7 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     //
     // Only the first section (core 0) will be parsed
     // 512 is more than enough
-    const cpuinfo_data = try utils.readFile(allocator, cpuinfo_file, 512);
+    const cpuinfo_data = try utils.readFile(allocator, io, cpuinfo_file, 512);
     defer allocator.free(cpuinfo_data);
 
     // Parsing /proc/cpuinfo
@@ -90,8 +90,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     var cmf_exists: bool = true;
 
     // Checks if /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq exists
-    _ = std.fs.accessAbsolute(cpuinfo_max_freq_path, .{ .mode = .read_only }) catch |err| {
-        if (err == std.posix.AccessError.FileNotFound) {
+    _ = std.Io.Dir.accessAbsolute(io, cpuinfo_max_freq_path, .{ .read = true }) catch |err| {
+        if (err == std.Io.Dir.AccessError.FileNotFound) {
             cmf_exists = false;
         }
     };
@@ -99,8 +99,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     if (cmf_exists) {
         // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
         const maxfreq_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_max_freq_path, .{ .mode = .read_only });
-        defer maxfreq_file.close();
-        const maxfreq_data = try utils.readFile(allocator, maxfreq_file, 32);
+        defer maxfreq_file.close(io);
+        const maxfreq_data = try utils.readFile(allocator, io, maxfreq_file, 32);
         defer allocator.free(maxfreq_data);
 
         // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
