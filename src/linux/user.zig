@@ -31,7 +31,7 @@ fn parseBashVersion(shell_version_output: []u8) ?[]u8 {
     const version_keyword_index = std.mem.indexOf(u8, shell_version_output[0..end_index.?], version_keyword);
     if (version_keyword_index == null) return null;
 
-    return shell_version_output[version_keyword_index.? + version_keyword.len .. end_index.?];
+    return shell_version_output[version_keyword_index.? + version_keyword.len .. end_index.? + 1];
 }
 
 pub fn getTerminalName(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
