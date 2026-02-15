@@ -11,8 +11,8 @@ pub const NetInfo = struct {
     ipv4_addr: []u8,
 };
 
-pub fn getNetInfo(allocator: std.mem.Allocator) !std.array_list.Managed(NetInfo) {
-    var net_info_list = std.array_list.Managed(NetInfo).init(allocator);
+pub fn getNetInfo(gpa: std.mem.Allocator) !std.array_list.Managed(NetInfo) {
+    var net_info_list = std.array_list.Managed(NetInfo).init(gpa);
 
     var ifap: ?*c_ifaddrs.ifaddrs = null;
     if (c_ifaddrs.getifaddrs(&ifap) != 0) {
@@ -35,8 +35,8 @@ pub fn getNetInfo(allocator: std.mem.Allocator) !std.array_list.Managed(NetInfo)
             const ip_str = c_inet.inet_ntop(c_inet.AF_INET, &addr_in.sin_addr, &ip_buf, c_inet.INET_ADDRSTRLEN);
             if (ip_str) |ip| {
                 try net_info_list.append(NetInfo{
-                    .interface_name = try allocator.dupe(u8, std.mem.span(ifa.ifa_name)),
-                    .ipv4_addr = try allocator.dupe(u8, std.mem.span(ip)),
+                    .interface_name = try gpa.dupe(u8, std.mem.span(ifa.ifa_name)),
+                    .ipv4_addr = try gpa.dupe(u8, std.mem.span(ip)),
                 });
             }
         }

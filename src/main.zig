@@ -8,7 +8,6 @@ const formatters = @import("formatters.zig");
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // TODO: rename all the paramenters 'allocator' in 'gpa'
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 

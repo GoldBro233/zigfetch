@@ -1,8 +1,8 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
 
-pub fn getPackagesInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
-    var packages_info = std.array_list.Managed(u8).init(allocator);
+pub fn getPackagesInfo(gpa: std.mem.Allocator, io: std.Io) ![]const u8 {
+    var packages_info = std.array_list.Managed(u8).init(gpa);
     defer packages_info.deinit();
 
     const homebrew_packages = countHomebrewPackages(io) catch |err| if (err == error.FileNotFound) 0 else return err;
@@ -23,7 +23,7 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
         try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " macports: {d}", .{macports_packages}));
     }
 
-    return try allocator.dupe(u8, packages_info.items);
+    return try gpa.dupe(u8, packages_info.items);
 }
 
 fn countHomebrewPackages(io: std.Io) !usize {

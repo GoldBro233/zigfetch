@@ -40,7 +40,7 @@ pub const DiskInfo = struct {
     disk_usage_percentage: u8,
 };
 
-pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
+pub fn getCpuInfo(gpa: std.mem.Allocator, io: std.Io) !CpuInfo {
     const cpu_cores = c_unistd.sysconf(c_unistd._SC_NPROCESSORS_ONLN);
 
     // Reads /proc/cpuinfo
@@ -54,8 +54,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     //
     // Only the first section (core 0) will be parsed
     // 512 is more than enough
-    const cpuinfo_data = try utils.readFile(allocator, io, cpuinfo_file, 512);
-    defer allocator.free(cpuinfo_data);
+    const cpuinfo_data = try utils.readFile(gpa, io, cpuinfo_file, 512);
+    defer gpa.free(cpuinfo_data);
 
     // Parsing /proc/cpuinfo
     var model_name: ?[]const u8 = null;
@@ -100,8 +100,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
         // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
         const maxfreq_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_max_freq_path, .{ .mode = .read_only });
         defer maxfreq_file.close(io);
-        const maxfreq_data = try utils.readFile(allocator, io, maxfreq_file, 32);
-        defer allocator.free(maxfreq_data);
+        const maxfreq_data = try utils.readFile(gpa, io, maxfreq_file, 32);
+        defer gpa.free(maxfreq_data);
 
         // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
         const trimmed = std.mem.trim(u8, maxfreq_data, " \n\r");
@@ -115,14 +115,14 @@ pub fn getCpuInfo(allocator: std.mem.Allocator, io: std.Io) !CpuInfo {
     }
 
     return CpuInfo{
-        .cpu_name = try allocator.dupe(u8, model_name orelse "Unknown"),
+        .cpu_name = try gpa.dupe(u8, model_name orelse "Unknown"),
         .cpu_cores = @as(i32, @intCast(cpu_cores)),
         .cpu_max_freq = cpu_max_freq,
     };
 }
 
-pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
-    var gpu_info_list = std.array_list.Managed(GpuInfo).init(allocator);
+pub fn getGpuInfo(gpa: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
+    var gpu_info_list = std.array_list.Managed(GpuInfo).init(gpa);
 
     const display_controller = 0x03;
 
@@ -151,13 +151,13 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
                 devices.*.device_id,
             );
 
-            const gpu_name = try allocator.dupe(u8, std.mem.span(name));
+            const gpu_name = try gpa.dupe(u8, std.mem.span(name));
 
-            const maybe_parsed_gpu_name = try parseGpuName(allocator, gpu_name);
+            const maybe_parsed_gpu_name = try parseGpuName(gpa, gpu_name);
             var parsed_gpu_name: []u8 = undefined;
 
             if (maybe_parsed_gpu_name != null) {
-                allocator.free(gpu_name);
+                gpa.free(gpu_name);
                 parsed_gpu_name = maybe_parsed_gpu_name.?;
             } else {
                 parsed_gpu_name = gpu_name;
@@ -173,7 +173,7 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
 
     if (gpu_info_list.items.len == 0) {
         try gpu_info_list.append(GpuInfo{
-            .gpu_name = try allocator.dupe(u8, "Unknown"),
+            .gpu_name = try gpa.dupe(u8, "Unknown"),
             .gpu_cores = 0,
             .gpu_freq = 0.0,
         });
@@ -182,24 +182,24 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
     return gpu_info_list;
 }
 
-fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
+fn parseGpuName(gpa: std.mem.Allocator, name: []u8) !?[]u8 {
     // NOTE: for references: https://github.com/pciutils/pciutils/blob/master/pci.ids
 
     if (std.mem.startsWith(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]")) {
         const size = std.mem.replacementSize(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD", parsed_gpu_name);
 
         return parsed_gpu_name;
     } else if (std.mem.startsWith(u8, name, "Intel Corporation")) {
         const size = std.mem.replacementSize(u8, name, "Intel Corporation", "Intel");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "Intel Corporation", "Intel", parsed_gpu_name);
 
         return parsed_gpu_name;
     } else if (std.mem.startsWith(u8, name, "NVIDIA Corporation")) {
         const size = std.mem.replacementSize(u8, name, "NVIDIA Corporation", "NVIDIA");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "NVIDIA Corporation", "NVIDIA", parsed_gpu_name);
 
         return parsed_gpu_name;
@@ -208,7 +208,7 @@ fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
     return null;
 }
 
-pub fn getRamInfo(allocator: std.mem.Allocator, io: std.Io) !RamInfo {
+pub fn getRamInfo(gpa: std.mem.Allocator, io: std.Io) !RamInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
     const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
@@ -220,8 +220,8 @@ pub fn getRamInfo(allocator: std.mem.Allocator, io: std.Io) !RamInfo {
     //
     // We only need to read the first few lines
     // 512 is more than enough
-    const meminfo_data = try utils.readFile(allocator, io, meminfo_file, 512);
-    defer allocator.free(meminfo_data);
+    const meminfo_data = try utils.readFile(gpa, io, meminfo_file, 512);
+    defer gpa.free(meminfo_data);
 
     // Parsing /proc/meminfo
     var total_mem: f64 = 0.0;
@@ -277,7 +277,7 @@ pub fn getRamInfo(allocator: std.mem.Allocator, io: std.Io) !RamInfo {
     };
 }
 
-pub fn getSwapInfo(allocator: std.mem.Allocator, io: std.Io) !?SwapInfo {
+pub fn getSwapInfo(gpa: std.mem.Allocator, io: std.Io) !?SwapInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
     const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
@@ -289,8 +289,8 @@ pub fn getSwapInfo(allocator: std.mem.Allocator, io: std.Io) !?SwapInfo {
     //
     // We only need to read the first few lines
     // 512 is ok
-    const meminfo_data = try utils.readFile(allocator, io, meminfo_file, 512);
-    defer allocator.free(meminfo_data);
+    const meminfo_data = try utils.readFile(gpa, io, meminfo_file, 512);
+    defer gpa.free(meminfo_data);
 
     // Parsing /proc/meminfo
     var total_swap: f64 = 0.0;

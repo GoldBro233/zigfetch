@@ -16,18 +16,18 @@ pub const KernelInfo = struct {
     kernel_release: []u8,
 };
 
-pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
+pub fn getHostname(gpa: std.mem.Allocator) ![]u8 {
     var buf: [std.posix.HOST_NAME_MAX]u8 = undefined;
     const hostnameEnv = try std.posix.gethostname(&buf);
 
-    const hostname = try allocator.dupe(u8, hostnameEnv);
+    const hostname = try gpa.dupe(u8, hostnameEnv);
 
     return hostname;
 }
 
-pub fn getLocale(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
-    const locale = std.process.Environ.getAlloc(environ, allocator, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
-        return allocator.dupe(u8, "Unknown");
+pub fn getLocale(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const locale = std.process.Environ.getAlloc(environ, gpa, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return gpa.dupe(u8, "Unknown");
     } else return err;
     return locale;
 }
@@ -64,25 +64,25 @@ pub fn getSystemUptime() !SystemUptime {
     };
 }
 
-pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
+pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
     var uts: c_utsname.struct_utsname = undefined;
     if (c_utsname.uname(&uts) != 0) {
         return error.UnameFailed;
     }
 
     return KernelInfo{
-        .kernel_name = try allocator.dupe(u8, std.mem.sliceTo(&uts.sysname, 0)),
-        .kernel_release = try allocator.dupe(u8, std.mem.sliceTo(&uts.release, 0)),
+        .kernel_name = try gpa.dupe(u8, std.mem.sliceTo(&uts.sysname, 0)),
+        .kernel_release = try gpa.dupe(u8, std.mem.sliceTo(&uts.release, 0)),
     };
 }
 
-pub fn getOsInfo(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
+pub fn getOsInfo(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     const os_release_path = "/etc/os-release";
     const os_release_file = try std.Io.Dir.cwd().openFile(io, os_release_path, .{ .mode = .read_only });
     defer os_release_file.close(io);
     const size = (try os_release_file.stat(io)).size;
-    const os_release_data = try utils.readFile(allocator, io, os_release_file, size);
-    defer allocator.free(os_release_data);
+    const os_release_data = try utils.readFile(gpa, io, os_release_file, size);
+    defer gpa.free(os_release_data);
 
     var pretty_name: ?[]const u8 = null;
 
@@ -98,10 +98,10 @@ pub fn getOsInfo(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
         }
     }
 
-    return try allocator.dupe(u8, pretty_name orelse "Unknown");
+    return try gpa.dupe(u8, pretty_name orelse "Unknown");
 }
 
-pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+pub fn getWindowManagerInfo(gpa: std.mem.Allocator, io: std.Io) ![]const u8 {
     var dir = try std.Io.Dir.cwd().openDir(io, "/proc/", .{ .iterate = true });
     defer dir.close(io);
 
@@ -121,8 +121,8 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u
             defer file.close(io);
 
             // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
-            const proc_name = try utils.readFile(allocator, io, file, 16);
-            defer allocator.free(proc_name);
+            const proc_name = try utils.readFile(gpa, io, file, 16);
+            defer gpa.free(proc_name);
 
             const proc_name_trimmed = std.mem.trim(u8, proc_name, "\n");
 
@@ -143,7 +143,7 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u
 
             inline for (supported_wms) |wm| {
                 if (std.ascii.eqlIgnoreCase(wm, proc_name_trimmed)) {
-                    break :outer try allocator.dupe(u8, proc_name_trimmed);
+                    break :outer try gpa.dupe(u8, proc_name_trimmed);
                 }
             }
         }
@@ -151,5 +151,5 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u
         break :outer null;
     };
 
-    return wm_name orelse allocator.dupe(u8, "Unknown");
+    return wm_name orelse gpa.dupe(u8, "Unknown");
 }

@@ -49,8 +49,8 @@ pub const default_formatters = [_]*const fn (fmt_ctx: FormatterContext) anyerror
     &getDefaultFormattedLocaleInfo,
 };
 
-pub fn getFormattedUsernameHostname(allocator: std.mem.Allocator, color: []const u8, username: []const u8, hostname: []const u8) ![]u8 {
-    return try std.fmt.allocPrint(allocator, "{s}{s}{s}@{s}{s}{s}", .{
+pub fn getFormattedUsernameHostname(gpa: std.mem.Allocator, color: []const u8, username: []const u8, hostname: []const u8) ![]u8 {
+    return try std.fmt.allocPrint(gpa, "{s}{s}{s}@{s}{s}{s}", .{
         color,
         username,
         display.Reset,

@@ -3,24 +3,24 @@ const std = @import("std");
 /// Returns the current logged-in user's username.
 /// Uses the environment variable `USER`.
 /// The caller is responsible for freeing the allocated memory.
-pub fn getUsername(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
-    return try std.process.Environ.getAlloc(environ, allocator, "USER");
+pub fn getUsername(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    return try std.process.Environ.getAlloc(environ, gpa, "USER");
 }
 
-pub fn getShell(allocator: std.mem.Allocator, io: std.Io, environ: std.process.Environ) ![]u8 {
-    const shell = std.process.Environ.getAlloc(environ, allocator, "SHELL") catch |err| if (err == error.EnvironmentVariableNotFound) {
-        return allocator.dupe(u8, "Unknown");
+pub fn getShell(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ) ![]u8 {
+    const shell = std.process.Environ.getAlloc(environ, gpa, "SHELL") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return gpa.dupe(u8, "Unknown");
     } else return err;
 
-    defer allocator.free(shell);
+    defer gpa.free(shell);
 
-    const result = try std.process.run(allocator, io, .{ .argv = &[_][]const u8{ shell, "--version" } });
+    const result = try std.process.run(gpa, io, .{ .argv = &[_][]const u8{ shell, "--version" } });
     const result_stdout = result.stdout;
 
     if (std.mem.indexOf(u8, shell, "bash") != null) {
         const bash_version = parseBashVersion(result_stdout);
-        defer allocator.free(result_stdout);
-        return try std.fmt.allocPrint(allocator, "{s} {s}", .{ "bash", bash_version.? });
+        defer gpa.free(result_stdout);
+        return try std.fmt.allocPrint(gpa, "{s} {s}", .{ "bash", bash_version.? });
     }
 
     return result_stdout;
@@ -37,9 +37,9 @@ fn parseBashVersion(shell_version_output: []u8) ?[]u8 {
     return shell_version_output[version_keyword_index.? + version_keyword.len .. end_index.?];
 }
 
-pub fn getTerminalName(allocator: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
-    const term_program = std.process.Environ.getAlloc(environ, allocator, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
-        return allocator.dupe(u8, "Unknown");
+pub fn getTerminalName(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const term_program = std.process.Environ.getAlloc(environ, gpa, "TERM_PROGRAM") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return gpa.dupe(u8, "Unknown");
     } else return err;
     return term_program;
 }

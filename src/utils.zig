@@ -115,15 +115,15 @@ test "getLongestAsciiArtRowLen" {
     try std.testing.expectEqual(40, try getLongestAsciiArtRowLen(rows[0..]));
 }
 
-pub fn readFile(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, size: usize) ![]const u8 {
-    var file_buf = try allocator.alloc(u8, size);
-    defer allocator.free(file_buf);
+pub fn readFile(gpa: std.mem.Allocator, io: std.Io, file: std.Io.File, size: usize) ![]const u8 {
+    var file_buf = try gpa.alloc(u8, size);
+    defer gpa.free(file_buf);
 
     const read = try file.readPositionalAll(io, file_buf, 0);
 
     const data = file_buf[0..read];
 
-    return allocator.dupe(u8, data);
+    return gpa.dupe(u8, data);
 }
 
 pub fn countEntries(io: std.Io, dir_path: []const u8) !usize {
