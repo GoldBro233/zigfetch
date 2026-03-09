@@ -1,3 +1,6 @@
 *zig-*
 result
 .tool-versions
+mise.local.toml
+mise.*.local.toml
+.miserc.toml
