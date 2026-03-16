@@ -1,5 +1,9 @@
 const std = @import("std");
-const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+// NOTE: Until the ISSUE: https://codeberg.org/ziglang/translate-c/issues/289
+// is fixed, the bindings will be used
+// TODO: uncomment once the issue is fixed
+// const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+const c_iokit = @import("bindings/iokit.zig");
 
 /// Converts a CFTypeRef casted to CFStringRef to a Zig string.
 pub fn cfTypeRefToZigString(gpa: std.mem.Allocator, cf_type_ref: c_iokit.CFTypeRef) ![]u8 {

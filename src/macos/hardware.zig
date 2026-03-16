@@ -1,7 +1,11 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+// NOTE: Until the ISSUE: https://codeberg.org/ziglang/translate-c/issues/289
+// is fixed, the bindings will be used
+// TODO: uncomment once the issue is fixed
+// const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+const c_iokit = @import("bindings/iokit.zig");
 const c_cf = @cImport(@cInclude("CoreFoundation/CoreFoundation.h"));
 const c_mach = @cImport(@cInclude("mach/mach.h"));
 const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
@@ -133,7 +137,9 @@ fn getCpuFreqAppleSilicon() !f64 {
     if (c_iokit.CFGetTypeID(freq_property) != c_cf.CFDataGetTypeID())
         return error.InvalidPropertyType;
 
-    const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    // TODO: uncomment once the issue is fixed
+    // const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    const freq_data = freq_property;
 
     // Get the length of the CFData
     const freq_data_length = c_iokit.CFDataGetLength(freq_data);
@@ -310,7 +316,9 @@ fn getAppleSiliconGpuFreq() !f64 {
     if (c_iokit.CFGetTypeID(freq_property) != c_cf.CFDataGetTypeID())
         return error.InvalidPropertyType;
 
-    const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    // TODO: uncomment once the issue is fixed
+    // const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    const freq_data = freq_property;
 
     // Get the length of the CFData
     const freq_data_length = c_iokit.CFDataGetLength(freq_data);
