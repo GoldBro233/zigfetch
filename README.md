@@ -25,6 +25,9 @@
 
 Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfetch](https://github.com/fastfetch-cli/fastfetch) like system information tool
 
+> [!NOTE]
+> For macOS users and contributors: see this [Issue](https://codeberg.org/ziglang/translate-c/issues/289)
+
 ## Requirements
 
 - \>= [zig v0.15.2](https://ziglang.org/)
