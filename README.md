@@ -65,6 +65,7 @@ brew install utox39/tap/zigfetch
 [![Packaging status](https://repology.org/badge/vertical-allrepos/zigfetch.svg)](https://repology.org/project/zigfetch/versions)
 
 - nixpkg: Thanks to [@heisfer](https://github.com/heisfer)
+- AUR: Thanks to [@GoldBro233](https://github.com/GoldBro233)
 
 ## Usage
 
