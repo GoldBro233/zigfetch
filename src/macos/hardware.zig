@@ -5,9 +5,40 @@ const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
 // is fixed, the bindings will be used
 // TODO: uncomment once the issue is fixed
 // const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+// const c_cf = @cImport(@cInclude("CoreFoundation/CoreFoundation.h"));
+
 const c_iokit = @import("bindings/iokit.zig");
-const c_cf = @cImport(@cInclude("CoreFoundation/CoreFoundation.h"));
-const c_mach = @cImport(@cInclude("mach/mach.h"));
+
+// ISSUE:
+// .zig-cache/o/848c774d02df656874fd6210833fe5d1/cimport.zig:5103:19: error: no size available for uninstantiable type 'cimport.mach_msg_type_descriptor_t'
+//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
+//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
+// .zig-cache/o/848c774d02df656874fd6210833fe5d1/cimport.zig:5101:40: note: opaque declared here
+// pub const mach_msg_type_descriptor_t = opaque {};
+//                                        ^~~~~~~~~
+// referenced by:
+//     c_cf: src/macos/hardware.zig:9:14
+//     getGpuInfo: src/macos/hardware.zig:268:55
+//     7 reference(s) hidden; use '-freference-trace=9' to see all references
+const c_cf = @import("bindings/corefoundation.zig");
+
+// ISSUE:
+// .zig-cache/o/43f41694a7f80dc84f91b83fee9f4b77/cimport.zig:319:19: error: no size available for uninstantiable type
+// 'cimport.ma
+// ch_msg_type_descriptor_t'
+//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
+//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
+// .zig-cache/o/43f41694a7f80dc84f91b83fee9f4b77/cimport.zig:317:40: note: opaque declared here
+// pub const mach_msg_type_descriptor_t = opaque {};
+//                                        ^~~~~~~~~
+// referenced by:
+//     c_mach: src/macos/hardware.zig:10:16
+//     getRamInfo: src/macos/hardware.zig:373:21
+//     7 reference(s) hidden; use '-freference-trace=9' to see all references
+
+// TODO: uncomment once the issue is fixed
+// const c_mach = @cImport(@cInclude("mach/mach.h"));
+const c_mach = @import("bindings/mach.zig");
 const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
 
 /// Struct representing CPU informations

@@ -1,6 +1,22 @@
 const std = @import("std");
 const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-const c_libproc = @cImport(@cInclude("libproc.h"));
+
+// ISSUE:
+// .zig-cache/o/452a3c886e051065cf00af7991fa6f5c/cimport.zig:1325:19: error: no size available for uninstantiable type 'cimport.mach_msg_type_descriptor_t'
+//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
+//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
+// .zig-cache/o/452a3c886e051065cf00af7991fa6f5c/cimport.zig:1323:40: note: opaque declared here
+// pub const mach_msg_type_descriptor_t = opaque {};
+//                                        ^~~~~~~~~
+// referenced by:
+//     c_libproc: src/macos/system.zig:3:19
+//     getWindowManagerInfo: src/macos/system.zig:173:36
+//     7 reference(s) hidden; use '-freference-trace=9' to see all references
+//
+
+// TODO: uncomment once the issue is fixed
+// const c_libproc = @cImport(@cInclude("libproc.h"));
+const c_libproc = @import("bindings/libproc.zig");
 
 /// Struct representing system uptime in days, hours, and minutes.
 pub const SystemUptime = struct {
