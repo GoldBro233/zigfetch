@@ -40,6 +40,9 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 
 ### Build from source
 
+> [!NOTE]
+> If you want to use the `master` version of Zig, use the branch `zig-master`
+
 ```bash
 # Clone the repo
 $ git clone https://github.com/utox39/zigfetch.git
