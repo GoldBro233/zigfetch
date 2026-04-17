@@ -1,10 +1,9 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
-const c_cf = @cImport(@cInclude("CoreFoundation/CoreFoundation.h"));
-const c_mach = @cImport(@cInclude("mach/mach.h"));
-const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
+const c_iokit = @import("bindings/iokit.zig");
+const c_cf = @import("bindings/corefoundation.zig");
+const c_mach = @import("bindings/mach.zig");
+const c = @import("c");
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
@@ -42,32 +41,32 @@ pub const DiskInfo = struct {
     disk_usage_percentage: u8,
 };
 
-pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
+pub fn getCpuInfo(gpa: std.mem.Allocator) !CpuInfo {
     var size: usize = 0;
 
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("machdep.cpu.brand_string", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("machdep.cpu.brand_string", null, &size, null, 0) != 0) {
         return error.FailedToGetCpuNameSize;
     }
 
-    const cpu_name: []u8 = try allocator.alloc(u8, size - 1);
-    errdefer allocator.free(cpu_name);
+    const cpu_name: []u8 = try gpa.alloc(u8, size - 1);
+    errdefer gpa.free(cpu_name);
 
     // Second call to sysctlbyname to get the CPU name
-    if (c_sysctl.sysctlbyname("machdep.cpu.brand_string", cpu_name.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("machdep.cpu.brand_string", cpu_name.ptr, &size, null, 0) != 0) {
         return error.FailedToGetCpuName;
     }
 
     // Call to sysctlbyname to get the cpu cores
     var n_cpu: i32 = 0;
     size = @sizeOf(i32);
-    if (c_sysctl.sysctlbyname("hw.ncpu", &n_cpu, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.ncpu", &n_cpu, &size, null, 0) != 0) {
         return error.FailedToGetPhysicalCpuInfo;
     }
 
     // Get cpu architecture
-    const arch: []u8 = try getCpuArch(allocator);
-    defer allocator.free(arch);
+    const arch: []u8 = try getCpuArch(gpa);
+    defer gpa.free(arch);
 
     var cpu_freq_mhz: f64 = 0.0;
 
@@ -82,22 +81,22 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     return CpuInfo{ .cpu_name = cpu_name, .cpu_cores = n_cpu, .cpu_max_freq = cpu_freq_ghz };
 }
 
-fn getCpuArch(allocator: std.mem.Allocator) ![]u8 {
+fn getCpuArch(gpa: std.mem.Allocator) ![]u8 {
     var size: usize = 0;
 
-    if (c_sysctl.sysctlbyname("hw.machine", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.machine", null, &size, null, 0) != 0) {
         return error.SysctlbynameFailed;
     }
 
-    const machine: []u8 = try allocator.alloc(u8, size);
+    const machine: []u8 = try gpa.alloc(u8, size);
 
-    if (c_sysctl.sysctlbyname("hw.machine", machine.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.machine", machine.ptr, &size, null, 0) != 0) {
         return error.SysctlbynameFailed;
     }
 
-    defer allocator.free(machine);
+    defer gpa.free(machine);
 
-    return allocator.dupe(u8, std.mem.sliceTo(machine, 0));
+    return gpa.dupe(u8, std.mem.sliceTo(machine, 0));
 }
 
 fn getCpuFreqAppleSilicon() !f64 {
@@ -133,7 +132,9 @@ fn getCpuFreqAppleSilicon() !f64 {
     if (c_iokit.CFGetTypeID(freq_property) != c_cf.CFDataGetTypeID())
         return error.InvalidPropertyType;
 
-    const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    // TODO: uncomment once the issue is fixed
+    // const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    const freq_data = freq_property;
 
     // Get the length of the CFData
     const freq_data_length = c_iokit.CFDataGetLength(freq_data);
@@ -176,7 +177,7 @@ pub fn getCpuFreqIntel() f64 {
     var freq: f64 = 0;
     var size: usize = @sizeOf(f64);
 
-    if (c_sysctl.sysctlbyname("hw.cpufrequency_max", &freq, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.cpufrequency_max", &freq, &size, null, 0) != 0) {
         return 0.0;
     }
 
@@ -184,11 +185,11 @@ pub fn getCpuFreqIntel() f64 {
     return freq / 1_000_000.0;
 }
 
-pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
+pub fn getGpuInfo(gpa: std.mem.Allocator) !GpuInfo {
     // TODO: add support for non-Apple Silicon Macs
 
     var gpu_info = GpuInfo{
-        .gpu_name = try allocator.dupe(u8, "Unknown"),
+        .gpu_name = try gpa.dupe(u8, "Unknown"),
         .gpu_cores = 0,
         .gpu_freq = 0.0,
     };
@@ -236,11 +237,11 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
 
         if (c_iokit.CFDictionaryGetValueIfPresent(@as(c_iokit.CFDictionaryRef, @ptrCast(properties_ptr)), model_key, &name_ref) == c_iokit.TRUE) {
             if (c_iokit.CFGetTypeID(name_ref) == c_iokit.CFStringGetTypeID()) {
-                const accel_name = utils.cfTypeRefToZigString(allocator, name_ref) catch {
+                const accel_name = utils.cfTypeRefToZigString(gpa, name_ref) catch {
                     return gpu_info;
                 };
 
-                allocator.free(gpu_info.gpu_name);
+                gpa.free(gpu_info.gpu_name);
                 gpu_info.gpu_name = accel_name;
             }
         }
@@ -262,8 +263,8 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !GpuInfo {
     }
 
     // Get cpu architecture
-    const arch: []u8 = try getCpuArch(allocator);
-    defer allocator.free(arch);
+    const arch: []u8 = try getCpuArch(gpa);
+    defer gpa.free(arch);
 
     var gpu_freq_mhz: f64 = 0.0;
 
@@ -310,7 +311,9 @@ fn getAppleSiliconGpuFreq() !f64 {
     if (c_iokit.CFGetTypeID(freq_property) != c_cf.CFDataGetTypeID())
         return error.InvalidPropertyType;
 
-    const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    // TODO: uncomment once the issue is fixed
+    // const freq_data = @as(*const c_iokit.__CFData, @ptrCast(freq_property));
+    const freq_data = freq_property;
 
     // Get the length of the CFData
     const freq_data_length = c_iokit.CFDataGetLength(freq_data);
@@ -353,8 +356,8 @@ pub fn getRamInfo() !RamInfo {
     // -- RAM SIZE --
     var ram_size: u64 = 0;
     var ram_size_len: usize = @sizeOf(u64);
-    var name = [_]c_int{ c_sysctl.CTL_HW, c_sysctl.HW_MEMSIZE };
-    if (c_sysctl.sysctl(&name, name.len, &ram_size, &ram_size_len, null, 0) != 0) {
+    var name = [_]c_int{ c.CTL_HW, c.HW_MEMSIZE };
+    if (c.sysctl(&name, name.len, &ram_size, &ram_size_len, null, 0) != 0) {
         return error.FailedToGetRamSize;
     }
 
@@ -388,10 +391,10 @@ pub fn getRamInfo() !RamInfo {
 }
 
 pub fn getSwapInfo() !?SwapInfo {
-    var swap: c_sysctl.struct_xsw_usage = undefined;
-    var size: usize = @sizeOf(c_sysctl.struct_xsw_usage);
+    var swap: c.struct_xsw_usage = undefined;
+    var size: usize = @sizeOf(c.struct_xsw_usage);
 
-    if (c_sysctl.sysctlbyname("vm.swapusage", &swap, &size, null, 0) != 0) {
+    if (c.sysctlbyname("vm.swapusage", &swap, &size, null, 0) != 0) {
         return error.FailedToGetSwapInfo;
     }
 
@@ -412,8 +415,8 @@ pub fn getSwapInfo() !?SwapInfo {
 }
 
 pub fn getDiskSize(disk_path: []const u8) !DiskInfo {
-    var stat: c_statvfs.struct_statvfs = undefined;
-    if (c_statvfs.statvfs(disk_path.ptr, &stat) != 0) {
+    var stat: c.struct_statvfs = undefined;
+    if (c.statvfs(disk_path.ptr, &stat) != 0) {
         return error.StatvfsFailed;
     }
 

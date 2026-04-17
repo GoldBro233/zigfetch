@@ -1,15 +1,15 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
 
-pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
-    var packages_info = std.array_list.Managed(u8).init(allocator);
+pub fn getPackagesInfo(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ) ![]const u8 {
+    var packages_info = std.array_list.Managed(u8).init(gpa);
     defer packages_info.deinit();
 
-    const flatpak_packages = countFlatpakPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
-    const nix_packages = countNixPackages(allocator) catch 0;
-    const dpkg_packages = countDpkgPackages(allocator) catch |err| if (err == error.FileNotFound) 0 else return err;
-    const pacman_packages = countPacmanPackages() catch |err| if (err == error.FileNotFound) 0 else return err;
-    const xbps_packages = countXbpsPackages(allocator) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const flatpak_packages = countFlatpakPackages(io) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const nix_packages = countNixPackages(gpa, io, environ) catch 0;
+    const dpkg_packages = countDpkgPackages(gpa, io) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const pacman_packages = countPacmanPackages(io) catch |err| if (err == error.FileNotFound) 0 else return err;
+    const xbps_packages = countXbpsPackages(gpa, io) catch |err| if (err == error.FileNotFound) 0 else return err;
 
     var buffer: [32]u8 = undefined;
 
@@ -33,32 +33,32 @@ pub fn getPackagesInfo(allocator: std.mem.Allocator) ![]const u8 {
         try packages_info.appendSlice(try std.fmt.bufPrint(&buffer, " Xbps: {d}", .{xbps_packages}));
     }
 
-    return try allocator.dupe(u8, packages_info.items);
+    return try gpa.dupe(u8, packages_info.items);
 }
 
-fn countFlatpakPackages() !usize {
-    const flatpak_apps = try countFlatpakApps();
-    const flatpak_runtimes = try countFlatpakRuntimes();
+fn countFlatpakPackages(io: std.Io) !usize {
+    const flatpak_apps = try countFlatpakApps(io);
+    const flatpak_runtimes = try countFlatpakRuntimes(io);
 
     return flatpak_apps + flatpak_runtimes;
 }
 
-fn countFlatpakApps() !usize {
-    var dir = try std.fs.openDirAbsolute("/var/lib/flatpak/app/", .{ .iterate = true });
-    defer dir.close();
+fn countFlatpakApps(io: std.Io) !usize {
+    var dir = try std.Io.Dir.openDirAbsolute(io, "/var/lib/flatpak/app/", .{ .iterate = true });
+    defer dir.close(io);
 
     var iter = dir.iterate();
 
     var count: usize = 0;
 
-    while (try iter.next()) |e| {
+    while (try iter.next(io)) |e| {
         if (e.kind != .directory) continue;
 
-        var sub_dir = try dir.openDir(e.name, .{});
-        defer sub_dir.close();
+        var sub_dir = try dir.openDir(io, e.name, .{});
+        defer sub_dir.close(io);
 
-        var current = sub_dir.openDir("current", .{}) catch continue;
-        defer current.close();
+        var current = sub_dir.openDir(io, "current", .{}) catch continue;
+        defer current.close(io);
 
         // If `current` was opened successfully, increment the count
         count += 1;
@@ -67,27 +67,27 @@ fn countFlatpakApps() !usize {
     return count;
 }
 
-fn countFlatpakRuntimes() !usize {
-    var dir = try std.fs.openDirAbsolute("/var/lib/flatpak/runtime/", .{ .iterate = true });
-    defer dir.close();
+fn countFlatpakRuntimes(io: std.Io) !usize {
+    var dir = try std.Io.Dir.openDirAbsolute(io, "/var/lib/flatpak/runtime/", .{ .iterate = true });
+    defer dir.close(io);
 
     var iter = dir.iterate();
 
     var counter: usize = 0;
 
-    while (try iter.next()) |e| {
+    while (try iter.next(io)) |e| {
         if (std.mem.endsWith(u8, e.name, ".Locale") or std.mem.endsWith(u8, e.name, ".Debug")) continue;
 
-        var arch_dir = try dir.openDir(e.name, .{ .iterate = true });
-        defer arch_dir.close();
+        var arch_dir = try dir.openDir(io, e.name, .{ .iterate = true });
+        defer arch_dir.close(io);
         var arch_iter = arch_dir.iterate();
-        while (try arch_iter.next()) |arch_e| {
+        while (try arch_iter.next(io)) |arch_e| {
             if (arch_e.kind != .directory) continue;
 
-            var sub_dir = try arch_dir.openDir(arch_e.name, .{ .iterate = true });
-            defer sub_dir.close();
+            var sub_dir = try arch_dir.openDir(io, arch_e.name, .{ .iterate = true });
+            defer sub_dir.close(io);
             var sub_iter = sub_dir.iterate();
-            while (try sub_iter.next()) |_| {
+            while (try sub_iter.next(io)) |_| {
                 counter += 1;
             }
         }
@@ -96,35 +96,35 @@ fn countFlatpakRuntimes() !usize {
     return counter;
 }
 
-fn countNixPackages(allocator: std.mem.Allocator) !usize {
+fn countNixPackages(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ) !usize {
     // `/run/current-system` is a sym-link, so we need to obtein the real path
-    const real_path = try std.fs.realpathAlloc(allocator, "/run/current-system");
-    defer allocator.free(real_path);
+    const real_path = try std.Io.Dir.realPathFileAbsoluteAlloc(io, "/run/current-system", gpa);
+    defer gpa.free(real_path);
 
     var hash: [32]u8 = undefined;
     std.crypto.hash.Blake3.hash(real_path, &hash, .{});
-    const hash_hex = try std.fmt.allocPrint(allocator, "{x}", .{hash});
-    defer allocator.free(hash_hex);
+    const hash_hex = try std.fmt.allocPrint(gpa, "{x}", .{hash});
+    defer gpa.free(hash_hex);
 
     var count: usize = 0;
 
     // Inspired by https://github.com/fastfetch-cli/fastfetch/blob/608382109cda6623e53f318e8aced54cf8e5a042/src/detection/packages/packages_nix.c#L81
-    count = checkNixCache(allocator, hash_hex) catch |err| switch (err) {
+    count = checkNixCache(gpa, io, environ, hash_hex) catch |err| switch (err) {
         error.FileNotFound, error.InvalidCache => {
             // nix-store --query --requisites /run/current-system | wc -l
-            const result = try std.process.Child.run(.{ .allocator = allocator, .argv = &[_][]const u8{
+            const result = try std.process.run(gpa, io, .{ .argv = &[_][]const u8{
                 "sh",
                 "-c",
                 "nix-store --query --requisites /run/current-system | wc -l",
             } });
 
             const result_trimmed = std.mem.trim(u8, result.stdout, "\n");
-            defer allocator.free(result.stdout);
-            defer allocator.free(result.stderr);
+            defer gpa.free(result.stdout);
+            defer gpa.free(result.stderr);
 
             count = try std.fmt.parseInt(usize, result_trimmed, 10);
 
-            try writeNixCache(allocator, hash_hex, count);
+            try writeNixCache(gpa, io, environ, hash_hex, count);
 
             return count;
         },
@@ -134,45 +134,57 @@ fn countNixPackages(allocator: std.mem.Allocator) !usize {
     return count;
 }
 
-fn getNixCachePath(allocator: std.mem.Allocator) ![]const u8 {
-    var cache_dir_path = std.process.getEnvVarOwned(allocator, "XDG_CACHE_HOME") catch try allocator.dupe(u8, "");
+fn getNixCachePath(gpa: std.mem.Allocator, environ: std.process.Environ) ![]const u8 {
+    const cache_dir_path = try getUnixCachePath(gpa, environ);
+    defer gpa.free(cache_dir_path);
+    return try std.fs.path.join(gpa, &.{ cache_dir_path, "zigfetch", "nix" });
+}
+
+fn getUnixCachePath(gpa: std.mem.Allocator, environ: std.process.Environ) ![]const u8 {
+    var cache_dir_path = std.process.Environ.getAlloc(environ, gpa, "XDG_CACHE_HOME") catch try gpa.dupe(u8, "");
     if (cache_dir_path.len == 0) {
-        allocator.free(cache_dir_path);
-        const home = try std.process.getEnvVarOwned(allocator, "HOME");
-        defer allocator.free(home);
-        cache_dir_path = try std.fs.path.join(allocator, &.{ home, ".cache", "zigfetch", "nix" });
-    } else {
-        cache_dir_path = try std.fs.path.join(allocator, &.{ cache_dir_path, "zigfetch", "nix" });
+        gpa.free(cache_dir_path);
+        const home = try std.process.Environ.getAlloc(environ, gpa, "HOME");
+        defer gpa.free(home);
+        cache_dir_path = try std.fs.path.join(gpa, &.{ home, ".cache" });
     }
 
     return cache_dir_path;
 }
 
-fn writeNixCache(allocator: std.mem.Allocator, hash: []const u8, count: usize) !void {
-    const cache_dir_path = try getNixCachePath(allocator);
-    defer allocator.free(cache_dir_path);
+fn writeNixCache(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ, hash: []const u8, count: usize) !void {
+    const nix_cache_dir_path = try getNixCachePath(gpa, environ);
+    defer gpa.free(nix_cache_dir_path);
 
-    try std.fs.cwd().makePath(cache_dir_path);
-    var cache_dir = try std.fs.cwd().openDir(cache_dir_path, .{});
-    defer cache_dir.close();
-    var cache_file = try cache_dir.createFile("nix_cache", .{ .truncate = true });
-    defer cache_file.close();
+    std.Io.Dir.accessAbsolute(io, nix_cache_dir_path, .{ .read = true }) catch {
+        const cache_dir_path = try getUnixCachePath(gpa, environ);
+        defer gpa.free(cache_dir_path);
 
-    const cache_content = try std.fmt.allocPrint(allocator, "{s}\n{d}", .{ hash, count });
-    defer allocator.free(cache_content);
-    try cache_file.writeAll(cache_content);
+        const cache_dir = try std.Io.Dir.openDirAbsolute(io, cache_dir_path, .{});
+        try cache_dir.createDirPath(io, "zigfetch/nix");
+    };
+
+    var nix_cache_dir = try std.Io.Dir.openDirAbsolute(io, nix_cache_dir_path, .{});
+    defer nix_cache_dir.close(io);
+    var cache_file = try nix_cache_dir.createFile(io, "nix_cache", .{ .truncate = true });
+    defer cache_file.close(io);
+
+    const cache_content = try std.fmt.allocPrint(gpa, "{s}\n{d}\n", .{ hash, count });
+    defer gpa.free(cache_content);
+    try cache_file.writePositionalAll(io, cache_content, 0);
 }
 
-fn checkNixCache(allocator: std.mem.Allocator, hash: []const u8) !usize {
-    const cache_dir_path = try getNixCachePath(allocator);
-    defer allocator.free(cache_dir_path);
-    var cache_dir = try std.fs.cwd().openDir(cache_dir_path, .{});
-    defer cache_dir.close();
+fn checkNixCache(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ, hash: []const u8) !usize {
+    const cache_dir_path = try getNixCachePath(gpa, environ);
+    defer gpa.free(cache_dir_path);
+    var cache_dir = try std.Io.Dir.openDirAbsolute(io, cache_dir_path, .{});
+    defer cache_dir.close(io);
 
-    var cache_file = try cache_dir.openFile("nix_cache", .{ .mode = .read_only });
-    const cache_size = (try cache_file.stat()).size;
-    const cache_content = try utils.readFile(allocator, cache_file, cache_size);
-    defer allocator.free(cache_content);
+    var cache_file = try cache_dir.openFile(io, "nix_cache", .{ .mode = .read_only });
+    defer cache_file.close(io);
+    const cache_size = (try cache_file.stat(io)).size;
+    const cache_content = try utils.readFile(gpa, io, cache_file, cache_size);
+    defer gpa.free(cache_content);
 
     var cache_iter = std.mem.splitScalar(u8, cache_content, '\n');
 
@@ -185,14 +197,14 @@ fn checkNixCache(allocator: std.mem.Allocator, hash: []const u8) !usize {
     return std.fmt.parseInt(usize, cache_iter.next().?, 10);
 }
 
-fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
+fn countDpkgPackages(gpa: std.mem.Allocator, io: std.Io) !usize {
     const dpkg_status_path = "/var/lib/dpkg/status";
-    const dpkg_file = try std.fs.cwd().openFile(dpkg_status_path, .{ .mode = .read_only });
-    defer dpkg_file.close();
-    const file_size = (try dpkg_file.stat()).size;
+    const dpkg_file = try std.Io.Dir.openFileAbsolute(io, dpkg_status_path, .{ .mode = .read_only });
+    defer dpkg_file.close(io);
+    const file_size = (try dpkg_file.stat(io)).size;
 
-    const content = try utils.readFile(allocator, dpkg_file, file_size);
-    defer allocator.free(content);
+    const content = try utils.readFile(gpa, io, dpkg_file, file_size);
+    defer gpa.free(content);
 
     var count: usize = 0;
     var iter = std.mem.splitSequence(u8, content, "\n\n");
@@ -205,27 +217,27 @@ fn countDpkgPackages(allocator: std.mem.Allocator) !usize {
     return count - 1;
 }
 
-fn countPacmanPackages() !usize {
+fn countPacmanPackages(io: std.Io) !usize {
     // Subtruct 1 to remove `ALPM_DB_VERSION` from the count
-    return try utils.countEntries("/var/lib/pacman/local") - 1;
+    return try utils.countEntries(io, "/var/lib/pacman/local") - 1;
 }
 
-fn countXbpsPackages(allocator: std.mem.Allocator) !usize {
-    var dir = try std.fs.openDirAbsolute("/var/db/xbps/", .{ .iterate = true });
-    defer dir.close();
+fn countXbpsPackages(gpa: std.mem.Allocator, io: std.Io) !usize {
+    var dir = try std.Io.Dir.openDirAbsolute(io, "/var/db/xbps/", .{ .iterate = true });
+    defer dir.close(io);
 
     var count: usize = 0;
 
     var dir_iter = dir.iterate();
 
-    while (try dir_iter.next()) |e| {
+    while (try dir_iter.next(io)) |e| {
         if ((e.kind == .file) and std.mem.startsWith(u8, e.name, "pkgdb-")) {
-            const pkgdb_file = try dir.openFile(e.name, .{ .mode = .read_only });
-            defer pkgdb_file.close();
-            const file_size = (try pkgdb_file.stat()).size;
+            const pkgdb_file = try dir.openFile(io, e.name, .{ .mode = .read_only });
+            defer pkgdb_file.close(io);
+            const file_size = (try pkgdb_file.stat(io)).size;
 
-            const content = try utils.readFile(allocator, pkgdb_file, file_size);
-            defer allocator.free(content);
+            const content = try utils.readFile(gpa, io, pkgdb_file, file_size);
+            defer gpa.free(content);
 
             var file_iter = std.mem.splitSequence(u8, content, "<string>installed</string>");
             // TODO: find a way to avoid this loop

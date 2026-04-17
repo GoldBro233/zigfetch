@@ -1,6 +1,6 @@
 const std = @import("std");
-const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-const c_libproc = @cImport(@cInclude("libproc.h"));
+const c_libproc = @import("bindings/libproc.zig");
+const c = @import("c");
 
 /// Struct representing system uptime in days, hours, and minutes.
 pub const SystemUptime = struct {
@@ -16,46 +16,32 @@ pub const KernelInfo = struct {
 };
 
 /// Returns the hostname.
-pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
+pub fn getHostname(gpa: std.mem.Allocator) ![]u8 {
     var buf: [std.posix.HOST_NAME_MAX]u8 = undefined;
     const hostnameEnv = try std.posix.gethostname(&buf);
 
-    const hostname = try allocator.dupe(u8, hostnameEnv);
+    const hostname = try gpa.dupe(u8, hostnameEnv);
 
     return hostname;
 }
 
-pub fn getLocale(allocator: std.mem.Allocator) ![]u8 {
-    const locale = std.process.getEnvVarOwned(allocator, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
-        return allocator.dupe(u8, "Unknown");
+pub fn getLocale(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const locale = std.process.Environ.getAlloc(environ, gpa, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return gpa.dupe(u8, "Unknown");
     } else return err;
     return locale;
 }
 
 /// Returns the system uptime.
-///
-/// Uses `sysctl` to fetch the system boot time and calculates the elapsed time.
-pub fn getSystemUptime() !SystemUptime {
+pub fn getSystemUptime(io: std.Io) SystemUptime {
     const seconds_per_day: f64 = 86400.0;
     const hours_per_day: f64 = 24.0;
     const seconds_per_hour: f64 = 3600.0;
     const seconds_per_minute: f64 = 60.0;
 
-    var boot_time: c_libproc.struct_timeval = undefined;
-    var size: usize = @sizeOf(c_libproc.struct_timeval);
+    const boot_seconds: f64 = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .boot).toSeconds()));
 
-    var uptime_seconds: f64 = 0.0;
-
-    var name = [_]c_int{ c_sysctl.CTL_KERN, c_sysctl.KERN_BOOTTIME };
-    if (c_sysctl.sysctl(&name, name.len, &boot_time, &size, null, 0) == 0) {
-        const boot_seconds = @as(f64, @floatFromInt(boot_time.tv_sec));
-        const now_seconds = @as(f64, @floatFromInt(std.time.timestamp()));
-        uptime_seconds = now_seconds - boot_seconds;
-    } else {
-        return error.UnableToGetSystemUptime;
-    }
-
-    var remainig_seconds: f64 = uptime_seconds;
+    var remainig_seconds: f64 = boot_seconds;
     const days: f64 = @floor(remainig_seconds / seconds_per_day);
 
     remainig_seconds = (remainig_seconds / seconds_per_day) - days;
@@ -71,34 +57,34 @@ pub fn getSystemUptime() !SystemUptime {
     };
 }
 
-pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
+pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
     var size: usize = 0;
 
     // --- KERNEL NAME ---
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.ostype", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.ostype", null, &size, null, 0) != 0) {
         return error.FailedToGetKernelNameSize;
     }
 
-    const kernel_type: []u8 = try allocator.alloc(u8, size - 1);
-    errdefer allocator.free(kernel_type);
+    const kernel_type: []u8 = try gpa.alloc(u8, size - 1);
+    errdefer gpa.free(kernel_type);
 
     // Second call to sysctlbyname to get the kernel name
-    if (c_sysctl.sysctlbyname("kern.ostype", kernel_type.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.ostype", kernel_type.ptr, &size, null, 0) != 0) {
         return error.FailedToGetKernelName;
     }
 
     // --- KERNEL RELEASE ---
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.osrelease", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osrelease", null, &size, null, 0) != 0) {
         return error.FailedToGetKernelReleaseSize;
     }
 
-    const os_release: []u8 = try allocator.alloc(u8, size - 1);
-    errdefer allocator.free(os_release);
+    const os_release: []u8 = try gpa.alloc(u8, size - 1);
+    errdefer gpa.free(os_release);
 
     // Second call to sysctlbyname to get the kernel release
-    if (c_sysctl.sysctlbyname("kern.osrelease", os_release.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osrelease", os_release.ptr, &size, null, 0) != 0) {
         return error.FailedToGetKernelRelease;
     }
 
@@ -108,50 +94,50 @@ pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
     };
 }
 
-pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
+pub fn getOsInfo(gpa: std.mem.Allocator) ![]u8 {
     var size: usize = 0;
 
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.osproductversion", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osproductversion", null, &size, null, 0) != 0) {
         return error.FailedToGetCpuNameSize;
     }
 
-    const os_version: []u8 = try allocator.alloc(u8, size - 1);
-    defer allocator.free(os_version);
+    const os_version: []u8 = try gpa.alloc(u8, size - 1);
+    defer gpa.free(os_version);
 
     // Second call to sysctlbyname to get the os version
-    if (c_sysctl.sysctlbyname("kern.osproductversion", os_version.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osproductversion", os_version.ptr, &size, null, 0) != 0) {
         return error.FailedToGetOsVersion;
     }
 
-    const os_info = try std.fmt.allocPrint(allocator, "macOS {s}", .{os_version});
+    const os_info = try std.fmt.allocPrint(gpa, "macOS {s}", .{os_version});
 
     return os_info;
 }
 
-pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
-    var name = [_]c_int{ c_sysctl.CTL_KERN, c_sysctl.KERN_PROC, c_sysctl.KERN_PROC_ALL };
+pub fn getWindowManagerInfo(gpa: std.mem.Allocator) ![]const u8 {
+    var name = [_]c_int{ c.CTL_KERN, c.KERN_PROC, c.KERN_PROC_ALL };
     var size: usize = 0;
 
     // First call to get the dimension
-    if (c_sysctl.sysctl(&name, name.len, null, &size, null, 0) != 0) {
+    if (c.sysctl(&name, name.len, null, &size, null, 0) != 0) {
         return error.SysctlFailed;
     }
 
-    const buffer: []u8 = try allocator.alloc(u8, size);
-    defer allocator.free(buffer);
+    const buffer: []u8 = try gpa.alloc(u8, size);
+    defer gpa.free(buffer);
 
     // Second call to retrieve process data
-    if (c_sysctl.sysctl(&name, name.len, buffer.ptr, &size, null, 0) != 0) {
+    if (c.sysctl(&name, name.len, buffer.ptr, &size, null, 0) != 0) {
         return error.SysctlFailed;
     }
 
     // Ensure the buffer size is valid
-    if (size % @sizeOf(c_sysctl.struct_kinfo_proc) != 0) {
+    if (size % @sizeOf(c.struct_kinfo_proc) != 0) {
         return error.InvalidBufferSize;
     }
 
-    const kinfo_list = std.mem.bytesAsSlice(c_sysctl.struct_kinfo_proc, buffer);
+    const kinfo_list = std.mem.bytesAsSlice(c.struct_kinfo_proc, buffer);
 
     var wm_name: ?[]const u8 = null;
 
@@ -173,8 +159,8 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
             var pathbuf: [c_libproc.PROC_PIDPATHINFO_MAXSIZE]u8 = undefined;
             // c_libproc.proc_pidpath saves the process name in `pathbuf` and returns the len
             const path_len = @as(usize, @intCast(c_libproc.proc_pidpath(pid, &pathbuf, pathbuf.len)));
-            const proc_pathname = if (path_len > 0) try allocator.dupe(u8, pathbuf[0..@intCast(path_len)]) else try allocator.dupe(u8, "unknown");
-            defer allocator.free(proc_pathname);
+            const proc_pathname = if (path_len > 0) try gpa.dupe(u8, pathbuf[0..@intCast(path_len)]) else try gpa.dupe(u8, "unknown");
+            defer gpa.free(proc_pathname);
 
             inline for (supported_wms) |wm| {
                 if (std.ascii.endsWithIgnoreCase(proc_pathname, wm)) {
@@ -183,7 +169,7 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
                     else
                         proc_pathname;
 
-                    break :outer try allocator.dupe(u8, basename);
+                    break :outer try gpa.dupe(u8, basename);
                 }
             }
         }
@@ -191,5 +177,5 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
         break :outer null;
     };
 
-    return wm_name orelse allocator.dupe(u8, "Quartz Compositor");
+    return wm_name orelse gpa.dupe(u8, "Quartz Compositor");
 }

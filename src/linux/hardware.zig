@@ -1,8 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
-const c_unistd = @cImport(@cInclude("unistd.h"));
-const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
-const c_libpci = @cImport(@cInclude("pci/pci.h"));
+const c = @import("c");
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
@@ -40,13 +38,13 @@ pub const DiskInfo = struct {
     disk_usage_percentage: u8,
 };
 
-pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
-    const cpu_cores = c_unistd.sysconf(c_unistd._SC_NPROCESSORS_ONLN);
+pub fn getCpuInfo(gpa: std.mem.Allocator, io: std.Io) !CpuInfo {
+    const cpu_cores = c.sysconf(c._SC_NPROCESSORS_ONLN);
 
     // Reads /proc/cpuinfo
     const cpuinfo_path = "/proc/cpuinfo";
-    const cpuinfo_file = try std.fs.cwd().openFile(cpuinfo_path, .{ .mode = .read_only });
-    defer cpuinfo_file.close();
+    const cpuinfo_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_path, .{ .mode = .read_only });
+    defer cpuinfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -54,8 +52,8 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     //
     // Only the first section (core 0) will be parsed
     // 512 is more than enough
-    const cpuinfo_data = try utils.readFile(allocator, cpuinfo_file, 512);
-    defer allocator.free(cpuinfo_data);
+    const cpuinfo_data = try utils.readFile(gpa, io, cpuinfo_file, 512);
+    defer gpa.free(cpuinfo_data);
 
     // Parsing /proc/cpuinfo
     var model_name: ?[]const u8 = null;
@@ -90,18 +88,18 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     var cmf_exists: bool = true;
 
     // Checks if /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq exists
-    _ = std.fs.accessAbsolute(cpuinfo_max_freq_path, .{ .mode = .read_only }) catch |err| {
-        if (err == std.posix.AccessError.FileNotFound) {
+    _ = std.Io.Dir.accessAbsolute(io, cpuinfo_max_freq_path, .{ .read = true }) catch |err| {
+        if (err == std.Io.Dir.AccessError.FileNotFound) {
             cmf_exists = false;
         }
     };
 
     if (cmf_exists) {
         // Reads /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
-        const maxfreq_file = try std.fs.cwd().openFile(cpuinfo_max_freq_path, .{ .mode = .read_only });
-        defer maxfreq_file.close();
-        const maxfreq_data = try utils.readFile(allocator, maxfreq_file, 32);
-        defer allocator.free(maxfreq_data);
+        const maxfreq_file = try std.Io.Dir.cwd().openFile(io, cpuinfo_max_freq_path, .{ .mode = .read_only });
+        defer maxfreq_file.close(io);
+        const maxfreq_data = try utils.readFile(gpa, io, maxfreq_file, 32);
+        defer gpa.free(maxfreq_data);
 
         // Parsing /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
         const trimmed = std.mem.trim(u8, maxfreq_data, " \n\r");
@@ -115,26 +113,26 @@ pub fn getCpuInfo(allocator: std.mem.Allocator) !CpuInfo {
     }
 
     return CpuInfo{
-        .cpu_name = try allocator.dupe(u8, model_name orelse "Unknown"),
+        .cpu_name = try gpa.dupe(u8, model_name orelse "Unknown"),
         .cpu_cores = @as(i32, @intCast(cpu_cores)),
         .cpu_max_freq = cpu_max_freq,
     };
 }
 
-pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
-    var gpu_info_list = std.array_list.Managed(GpuInfo).init(allocator);
+pub fn getGpuInfo(gpa: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
+    var gpu_info_list = std.array_list.Managed(GpuInfo).init(gpa);
 
     const display_controller = 0x03;
 
-    const pacc = c_libpci.pci_alloc();
-    defer c_libpci.pci_cleanup(pacc);
-    c_libpci.pci_init(pacc);
-    c_libpci.pci_scan_bus(pacc);
+    const pacc = c.pci_alloc();
+    defer c.pci_cleanup(pacc);
+    c.pci_init(pacc);
+    c.pci_scan_bus(pacc);
 
     var devices = pacc.*.devices;
     while (devices != null) : (devices = devices.*.next) {
         // NOTE: for references: https://github.com/pciutils/pciutils/blob/3ec74c71c01878f92e751f15bb8febe720c3ab40/lib/access.c#L194
-        const known_fields = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+        const known_fields = c.pci_fill_info(devices, c.PCI_FILL_IDENT | c.PCI_FILL_CLASS);
         if (known_fields <= 0) {
             return error.NoLibpciFieldsFound;
         }
@@ -142,22 +140,22 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
         if ((devices.*.device_class >> 8) == display_controller) {
             var name_buffer: [256]u8 = undefined;
 
-            const name = c_libpci.pci_lookup_name(
+            const name = c.pci_lookup_name(
                 pacc,
                 &name_buffer,
                 name_buffer.len,
-                c_libpci.PCI_LOOKUP_VENDOR | c_libpci.PCI_LOOKUP_DEVICE,
+                c.PCI_LOOKUP_VENDOR | c.PCI_LOOKUP_DEVICE,
                 devices.*.vendor_id,
                 devices.*.device_id,
             );
 
-            const gpu_name = try allocator.dupe(u8, std.mem.span(name));
+            const gpu_name = try gpa.dupe(u8, std.mem.span(name));
 
-            const maybe_parsed_gpu_name = try parseGpuName(allocator, gpu_name);
+            const maybe_parsed_gpu_name = try parseGpuName(gpa, gpu_name);
             var parsed_gpu_name: []u8 = undefined;
 
             if (maybe_parsed_gpu_name != null) {
-                allocator.free(gpu_name);
+                gpa.free(gpu_name);
                 parsed_gpu_name = maybe_parsed_gpu_name.?;
             } else {
                 parsed_gpu_name = gpu_name;
@@ -173,7 +171,7 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
 
     if (gpu_info_list.items.len == 0) {
         try gpu_info_list.append(GpuInfo{
-            .gpu_name = try allocator.dupe(u8, "Unknown"),
+            .gpu_name = try gpa.dupe(u8, "Unknown"),
             .gpu_cores = 0,
             .gpu_freq = 0.0,
         });
@@ -182,24 +180,24 @@ pub fn getGpuInfo(allocator: std.mem.Allocator) !std.array_list.Managed(GpuInfo)
     return gpu_info_list;
 }
 
-fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
+fn parseGpuName(gpa: std.mem.Allocator, name: []u8) !?[]u8 {
     // NOTE: for references: https://github.com/pciutils/pciutils/blob/master/pci.ids
 
     if (std.mem.startsWith(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]")) {
         const size = std.mem.replacementSize(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "Advanced Micro Devices, Inc. [AMD/ATI]", "AMD", parsed_gpu_name);
 
         return parsed_gpu_name;
     } else if (std.mem.startsWith(u8, name, "Intel Corporation")) {
         const size = std.mem.replacementSize(u8, name, "Intel Corporation", "Intel");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "Intel Corporation", "Intel", parsed_gpu_name);
 
         return parsed_gpu_name;
     } else if (std.mem.startsWith(u8, name, "NVIDIA Corporation")) {
         const size = std.mem.replacementSize(u8, name, "NVIDIA Corporation", "NVIDIA");
-        const parsed_gpu_name = try allocator.alloc(u8, size);
+        const parsed_gpu_name = try gpa.alloc(u8, size);
         _ = std.mem.replace(u8, name, "NVIDIA Corporation", "NVIDIA", parsed_gpu_name);
 
         return parsed_gpu_name;
@@ -208,11 +206,11 @@ fn parseGpuName(allocator: std.mem.Allocator, name: []u8) !?[]u8 {
     return null;
 }
 
-pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
+pub fn getRamInfo(gpa: std.mem.Allocator, io: std.Io) !RamInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
-    defer meminfo_file.close();
+    const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -220,8 +218,8 @@ pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
     //
     // We only need to read the first few lines
     // 512 is more than enough
-    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
-    defer allocator.free(meminfo_data);
+    const meminfo_data = try utils.readFile(gpa, io, meminfo_file, 512);
+    defer gpa.free(meminfo_data);
 
     // Parsing /proc/meminfo
     var total_mem: f64 = 0.0;
@@ -277,11 +275,11 @@ pub fn getRamInfo(allocator: std.mem.Allocator) !RamInfo {
     };
 }
 
-pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
+pub fn getSwapInfo(gpa: std.mem.Allocator, io: std.Io) !?SwapInfo {
     // Reads /proc/meminfo
     const meminfo_path = "/proc/meminfo";
-    const meminfo_file = try std.fs.cwd().openFile(meminfo_path, .{ .mode = .read_only });
-    defer meminfo_file.close();
+    const meminfo_file = try std.Io.Dir.cwd().openFile(io, meminfo_path, .{ .mode = .read_only });
+    defer meminfo_file.close(io);
 
     // NOTE: procfs is a pseudo-filesystem, so it is not possible to determine the size of a file
     // https://docs.kernel.org/filesystems/proc.html
@@ -289,8 +287,8 @@ pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
     //
     // We only need to read the first few lines
     // 512 is ok
-    const meminfo_data = try utils.readFile(allocator, meminfo_file, 512);
-    defer allocator.free(meminfo_data);
+    const meminfo_data = try utils.readFile(gpa, io, meminfo_file, 512);
+    defer gpa.free(meminfo_data);
 
     // Parsing /proc/meminfo
     var total_swap: f64 = 0.0;
@@ -343,8 +341,8 @@ pub fn getSwapInfo(allocator: std.mem.Allocator) !?SwapInfo {
 }
 
 pub fn getDiskSize(disk_path: []const u8) !DiskInfo {
-    var stat: c_statvfs.struct_statvfs = undefined;
-    if (c_statvfs.statvfs(disk_path.ptr, &stat) != 0) {
+    var stat: c.struct_statvfs = undefined;
+    if (c.statvfs(disk_path.ptr, &stat) != 0) {
         return error.StatvfsFailed;
     }
 

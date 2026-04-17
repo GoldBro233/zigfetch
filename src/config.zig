@@ -1,5 +1,5 @@
 const std = @import("std");
-const ascii = @import("ascii.zig");
+const display = @import("display.zig");
 const utils = @import("utils.zig");
 
 pub const Module = struct {
@@ -44,8 +44,8 @@ pub fn getUsernameHostnameColor(config: ?std.json.Parsed(Config)) ?[]u8 {
     } else return null;
 }
 
-pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
-    var modules_list = std.array_list.Managed(ModuleType).init(allocator);
+pub fn getModulesTypes(gpa: std.mem.Allocator, config: ?std.json.Parsed(Config)) !std.array_list.Managed(ModuleType) {
+    var modules_list = std.array_list.Managed(ModuleType).init(gpa);
 
     if (config) |c| {
         for (c.value.modules) |module| {
@@ -62,23 +62,23 @@ pub fn getModulesTypes(allocator: std.mem.Allocator, config: ?std.json.Parsed(Co
     return modules_list;
 }
 
-pub fn readConfigFile(allocator: std.mem.Allocator) !?std.json.Parsed(Config) {
-    const home = try std.process.getEnvVarOwned(allocator, "HOME");
-    defer allocator.free(home);
+pub fn readConfigFile(gpa: std.mem.Allocator, io: std.Io, environ: std.process.Environ) !?std.json.Parsed(Config) {
+    const home = try std.process.Environ.getAlloc(environ, gpa, "HOME");
+    defer gpa.free(home);
 
-    const config_abs_path = try std.mem.concat(allocator, u8, &.{ home, "/.config/zigfetch/config.json" });
-    defer allocator.free(config_abs_path);
+    const config_abs_path = try std.mem.concat(gpa, u8, &.{ home, "/.config/zigfetch/config.json" });
+    defer gpa.free(config_abs_path);
 
-    const config_file = std.fs.openFileAbsolute(config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
+    const config_file = std.Io.Dir.openFileAbsolute(io, config_abs_path, .{ .mode = .read_only }) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => return err,
     };
-    defer config_file.close();
+    defer config_file.close(io);
 
-    const file_size = (try config_file.stat()).size;
+    const file_size = (try config_file.stat(io)).size;
 
-    const config_data = try utils.readFile(allocator, config_file, file_size);
-    defer allocator.free(config_data);
+    const config_data = try utils.readFile(gpa, io, config_file, file_size);
+    defer gpa.free(config_data);
 
-    return try std.json.parseFromSlice(Config, allocator, config_data, .{ .allocate = .alloc_always });
+    return try std.json.parseFromSlice(Config, gpa, config_data, .{ .allocate = .alloc_always });
 }

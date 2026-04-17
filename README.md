@@ -25,9 +25,12 @@
 
 Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfetch](https://github.com/fastfetch-cli/fastfetch) like system information tool
 
+> [!NOTE]
+> For macOS users and contributors: see this [Issue](https://codeberg.org/ziglang/translate-c/issues/289)
+
 ## Requirements
 
-- \>= [zig v0.15.2](https://ziglang.org/)
+- \>= [zig v0.16.0](https://ziglang.org/)
 
 ### Linux only
 
@@ -36,6 +39,9 @@ Zigfetch is a minimal [neofetch](https://github.com/dylanaraps/neofetch)/[fastfe
 ## Installation
 
 ### Build from source
+
+> [!NOTE]
+> If you want to use the `master` version of Zig, use the `zig-master` branch
 
 ```bash
 # Clone the repo

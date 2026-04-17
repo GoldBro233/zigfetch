@@ -65,28 +65,28 @@ test "parse ffffff" {
     try std.testing.expect((result.r == 255) and (result.g == 255) and (result.b == 255));
 }
 
-pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
+pub fn printAsciiAndModules(gpa: std.mem.Allocator, io: std.Io, ascii_art_path: ?[]u8, sys_info_list: std.array_list.Managed([]u8)) !void {
     var stdout_buffer: [2048]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+    var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout = &stdout_file_writer.interface;
 
     var ascii_art_data: []const u8 = undefined;
     if (ascii_art_path) |ascii| {
-        const ascii_file = try std.fs.cwd().openFile(ascii, .{ .mode = .read_only });
-        defer ascii_file.close();
-        const file_size = (try ascii_file.stat()).size;
-        ascii_art_data = try utils.readFile(allocator, ascii_file, file_size);
+        const ascii_file = try std.Io.Dir.cwd().openFile(io, ascii, .{ .mode = .read_only });
+        defer ascii_file.close(io);
+        const file_size = (try ascii_file.stat(io)).size;
+        ascii_art_data = try utils.readFile(gpa, io, ascii_file, file_size);
     } else {
         ascii_art_data = @embedFile("./assets/ascii/guy_fawks.txt");
     }
 
     defer if (ascii_art_path != null) {
-        allocator.free(ascii_art_data);
+        gpa.free(ascii_art_data);
     };
 
     var lines = std.mem.splitScalar(u8, ascii_art_data, '\n');
 
-    var ascii_art_content_list = std.array_list.Managed([]const u8).init(allocator);
+    var ascii_art_content_list = std.array_list.Managed([]const u8).init(gpa);
     defer ascii_art_content_list.deinit();
 
     while (lines.next()) |line| {
@@ -116,7 +116,7 @@ pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8,
     while (i < max_len) : (i += 1) {
         // Print the ascii art if the width of the terminal is greater than the spacing (5) + the longest ascii art row length + the longest sys info string length
         if (can_print_ascii_art) {
-            const alignment_buffer = try allocator.alloc(u8, if (i < ascii_art_len) longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing else longest_ascii_art_row_len + spacing);
+            const alignment_buffer = try gpa.alloc(u8, if (i < ascii_art_len) longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing else longest_ascii_art_row_len + spacing);
             @memset(alignment_buffer, ' ');
 
             if (i < ascii_art_len) {
@@ -125,7 +125,7 @@ pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8,
                 try stdout.print("{s}", .{alignment_buffer});
             }
 
-            allocator.free(alignment_buffer);
+            gpa.free(alignment_buffer);
 
             try stdout.flush();
         }
@@ -151,6 +151,6 @@ pub fn printAsciiAndModules(allocator: std.mem.Allocator, ascii_art_path: ?[]u8,
     }
 
     for (sys_info_list.items) |item| {
-        allocator.free(item);
+        gpa.free(item);
     }
 }

@@ -1,7 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
-const c_sysinfo = @cImport(@cInclude("sys/sysinfo.h"));
-const c_utsname = @cImport(@cInclude("sys/utsname.h"));
+const c = @import("c");
 
 /// Struct representing system uptime in days, hours, and minutes.
 pub const SystemUptime = struct {
@@ -16,39 +15,33 @@ pub const KernelInfo = struct {
     kernel_release: []u8,
 };
 
-pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
+pub fn getHostname(gpa: std.mem.Allocator) ![]u8 {
     var buf: [std.posix.HOST_NAME_MAX]u8 = undefined;
     const hostnameEnv = try std.posix.gethostname(&buf);
 
-    const hostname = try allocator.dupe(u8, hostnameEnv);
+    const hostname = try gpa.dupe(u8, hostnameEnv);
 
     return hostname;
 }
 
-pub fn getLocale(allocator: std.mem.Allocator) ![]u8 {
-    const locale = std.process.getEnvVarOwned(allocator, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
-        return allocator.dupe(u8, "Unknown");
+pub fn getLocale(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
+    const locale = std.process.Environ.getAlloc(environ, gpa, "LANG") catch |err| if (err == error.EnvironmentVariableNotFound) {
+        return gpa.dupe(u8, "Unknown");
     } else return err;
     return locale;
 }
 
 /// Returns the system uptime.
-///
-/// Uses `sysinfo` to fetch the system uptime and calculates the elapsed time.
-pub fn getSystemUptime() !SystemUptime {
+pub fn getSystemUptime(io: std.Io) SystemUptime {
     const seconds_per_day: f64 = 86400.0;
     const hours_per_day: f64 = 24.0;
     const seconds_per_hour: f64 = 3600.0;
     const seconds_per_minute: f64 = 60.0;
 
-    var info: c_sysinfo.struct_sysinfo = undefined;
-    if (c_sysinfo.sysinfo(&info) != 0) {
-        return error.SysinfoFailed;
-    }
+    const boot_seconds: f64 = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .boot).toSeconds()));
 
-    const uptime_seconds: f64 = @as(f64, @floatFromInt(info.uptime));
+    var remainig_seconds: f64 = boot_seconds;
 
-    var remainig_seconds: f64 = uptime_seconds;
     const days: f64 = @floor(remainig_seconds / seconds_per_day);
 
     remainig_seconds = (remainig_seconds / seconds_per_day) - days;
@@ -64,25 +57,25 @@ pub fn getSystemUptime() !SystemUptime {
     };
 }
 
-pub fn getKernelInfo(allocator: std.mem.Allocator) !KernelInfo {
-    var uts: c_utsname.struct_utsname = undefined;
-    if (c_utsname.uname(&uts) != 0) {
+pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
+    var uts: c.struct_utsname = undefined;
+    if (c.uname(&uts) != 0) {
         return error.UnameFailed;
     }
 
     return KernelInfo{
-        .kernel_name = try allocator.dupe(u8, std.mem.sliceTo(&uts.sysname, 0)),
-        .kernel_release = try allocator.dupe(u8, std.mem.sliceTo(&uts.release, 0)),
+        .kernel_name = try gpa.dupe(u8, std.mem.sliceTo(&uts.sysname, 0)),
+        .kernel_release = try gpa.dupe(u8, std.mem.sliceTo(&uts.release, 0)),
     };
 }
 
-pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
+pub fn getOsInfo(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     const os_release_path = "/etc/os-release";
-    const os_release_file = try std.fs.cwd().openFile(os_release_path, .{ .mode = .read_only });
-    defer os_release_file.close();
-    const size = (try os_release_file.stat()).size;
-    const os_release_data = try utils.readFile(allocator, os_release_file, size);
-    defer allocator.free(os_release_data);
+    const os_release_file = try std.Io.Dir.cwd().openFile(io, os_release_path, .{ .mode = .read_only });
+    defer os_release_file.close(io);
+    const size = (try os_release_file.stat(io)).size;
+    const os_release_data = try utils.readFile(gpa, io, os_release_file, size);
+    defer gpa.free(os_release_data);
 
     var pretty_name: ?[]const u8 = null;
 
@@ -98,18 +91,18 @@ pub fn getOsInfo(allocator: std.mem.Allocator) ![]u8 {
         }
     }
 
-    return try allocator.dupe(u8, pretty_name orelse "Unknown");
+    return try gpa.dupe(u8, pretty_name orelse "Unknown");
 }
 
-pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
-    var dir = try std.fs.cwd().openDir("/proc/", .{ .iterate = true });
-    defer dir.close();
+pub fn getWindowManagerInfo(gpa: std.mem.Allocator, io: std.Io) ![]const u8 {
+    var dir = try std.Io.Dir.cwd().openDir(io, "/proc/", .{ .iterate = true });
+    defer dir.close(io);
 
     var wm_name: ?[]const u8 = null;
 
     var iter = dir.iterate();
     wm_name = outer: {
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             if (entry.kind != .directory) continue;
 
             // Check if the entry name is numeric
@@ -117,12 +110,12 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
 
             var buf: [1024]u8 = undefined;
             const file_name = try std.fmt.bufPrint(&buf, "/proc/{s}/comm", .{entry.name});
-            const file = try std.fs.cwd().openFile(file_name, .{ .mode = .read_only });
-            defer file.close();
+            const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });
+            defer file.close(io);
 
             // NOTE: https://stackoverflow.com/questions/23534263/what-is-the-maximum-allowed-limit-on-the-length-of-a-process-name
-            const proc_name = try utils.readFile(allocator, file, 16);
-            defer allocator.free(proc_name);
+            const proc_name = try utils.readFile(gpa, io, file, 16);
+            defer gpa.free(proc_name);
 
             const proc_name_trimmed = std.mem.trim(u8, proc_name, "\n");
 
@@ -143,7 +136,7 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
 
             inline for (supported_wms) |wm| {
                 if (std.ascii.eqlIgnoreCase(wm, proc_name_trimmed)) {
-                    break :outer try allocator.dupe(u8, proc_name_trimmed);
+                    break :outer try gpa.dupe(u8, proc_name_trimmed);
                 }
             }
         }
@@ -151,5 +144,5 @@ pub fn getWindowManagerInfo(allocator: std.mem.Allocator) ![]const u8 {
         break :outer null;
     };
 
-    return wm_name orelse allocator.dupe(u8, "Unknown");
+    return wm_name orelse gpa.dupe(u8, "Unknown");
 }

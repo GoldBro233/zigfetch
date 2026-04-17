@@ -1,16 +1,20 @@
 const std = @import("std");
-const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+// NOTE: Until the ISSUE: https://codeberg.org/ziglang/translate-c/issues/289
+// is fixed, the bindings will be used
+// TODO: uncomment once the issue is fixed
+// const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
+const c_iokit = @import("bindings/iokit.zig");
 
 /// Converts a CFTypeRef casted to CFStringRef to a Zig string.
-pub fn cfTypeRefToZigString(allocator: std.mem.Allocator, cf_type_ref: c_iokit.CFTypeRef) ![]u8 {
+pub fn cfTypeRefToZigString(gpa: std.mem.Allocator, cf_type_ref: c_iokit.CFTypeRef) ![]u8 {
     const cf_string: c_iokit.CFStringRef = @ptrFromInt(@intFromPtr(cf_type_ref));
 
     const length = c_iokit.CFStringGetLength(cf_string);
     const max_size = c_iokit.CFStringGetMaximumSizeForEncoding(length, c_iokit.kCFStringEncodingUTF8) + 1;
     const max_size_usize = @as(usize, @intCast(max_size));
 
-    const buffer = try allocator.alloc(u8, max_size_usize);
-    errdefer allocator.free(buffer);
+    const buffer = try gpa.alloc(u8, max_size_usize);
+    errdefer gpa.free(buffer);
 
     if (c_iokit.CFStringGetCString(cf_string, buffer.ptr, @as(c_iokit.CFIndex, @intCast(buffer.len)), c_iokit.kCFStringEncodingUTF8) == c_iokit.FALSE) {
         return error.StringConversionFailed;
@@ -21,5 +25,5 @@ pub fn cfTypeRefToZigString(allocator: std.mem.Allocator, cf_type_ref: c_iokit.C
         actual_len += 1;
     }
 
-    return allocator.realloc(buffer, actual_len);
+    return gpa.realloc(buffer, actual_len);
 }

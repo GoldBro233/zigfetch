@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -10,10 +11,32 @@ pub fn build(b: *std.Build) void {
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
+    const is_macos = builtin.os.tag == .macos;
+    const is_linux = builtin.os.tag == .linux;
+
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
+
+    const c_dot_h_path =
+        if (is_macos)
+            "src/macos/c.h"
+        else if (is_linux)
+            "src/linux/c.h"
+        else
+            @compileError("Unsupported operating system");
+
+    const translate_c = b.addTranslateC(.{
+        .root_source_file = b.path(c_dot_h_path),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    if (is_linux) {
+        translate_c.linkSystemLibrary("pci", .{ .needed = true });
+        translate_c.link_libc = true;
+    }
 
     const exe = b.addExecutable(.{
         .name = "zigfetch",
@@ -21,17 +44,15 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "c", .module = translate_c.createModule() },
+            },
         }),
     });
 
-    if (target.result.os.tag == .macos) {
-        exe.linkFramework("CoreFoundation");
-        exe.linkFramework("IOKit");
-    }
-
-    if (target.result.os.tag == .linux) {
-        exe.linkLibC();
-        exe.linkSystemLibrary("pci");
+    if (is_macos) {
+        exe.root_module.linkFramework("CoreFoundation", .{ .needed = true });
+        exe.root_module.linkFramework("IOKit", .{ .needed = true });
     }
 
     // This declares intent for the executable to be installed into the
