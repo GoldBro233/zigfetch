@@ -33,29 +33,15 @@ pub fn getLocale(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
 }
 
 /// Returns the system uptime.
-///
-/// Uses `sysctl` to fetch the system boot time and calculates the elapsed time.
-pub fn getSystemUptime(io: std.Io) !SystemUptime {
+pub fn getSystemUptime(io: std.Io) SystemUptime {
     const seconds_per_day: f64 = 86400.0;
     const hours_per_day: f64 = 24.0;
     const seconds_per_hour: f64 = 3600.0;
     const seconds_per_minute: f64 = 60.0;
 
-    var boot_time: c_libproc.struct_timeval = undefined;
-    var size: usize = @sizeOf(c_libproc.struct_timeval);
+    const boot_seconds: f64 = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .boot).toSeconds()));
 
-    var uptime_seconds: f64 = 0.0;
-
-    var name = [_]c_int{ c.CTL_KERN, c.KERN_BOOTTIME };
-    if (c.sysctl(&name, name.len, &boot_time, &size, null, 0) == 0) {
-        const boot_seconds = @as(f64, @floatFromInt(boot_time.tv_sec));
-        const now_seconds = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .real).toSeconds()));
-        uptime_seconds = now_seconds - boot_seconds;
-    } else {
-        return error.UnableToGetSystemUptime;
-    }
-
-    var remainig_seconds: f64 = uptime_seconds;
+    var remainig_seconds: f64 = boot_seconds;
     const days: f64 = @floor(remainig_seconds / seconds_per_day);
 
     remainig_seconds = (remainig_seconds / seconds_per_day) - days;

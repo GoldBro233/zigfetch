@@ -124,7 +124,7 @@ pub fn getFormattedUptimeInfo(fmt_ctx: FormatterContext, key: []const u8, key_co
     const allocator = fmt_ctx.gpa;
     const io = fmt_ctx.io;
 
-    const uptime = if (builtin.os.tag == .macos) try detection.system.getSystemUptime(io) else if (builtin.os.tag == .linux) try detection.system.getSystemUptime();
+    const uptime = detection.system.getSystemUptime(io);
     return Result{ .string = try std.fmt.allocPrint(allocator, "{s}{s}:{s} {} days, {} hours, {} minutes", .{
         key_color,
         key,

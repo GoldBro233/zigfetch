@@ -32,22 +32,16 @@ pub fn getLocale(gpa: std.mem.Allocator, environ: std.process.Environ) ![]u8 {
 }
 
 /// Returns the system uptime.
-///
-/// Uses `sysinfo` to fetch the system uptime and calculates the elapsed time.
-pub fn getSystemUptime() !SystemUptime {
+pub fn getSystemUptime(io: std.Io) SystemUptime {
     const seconds_per_day: f64 = 86400.0;
     const hours_per_day: f64 = 24.0;
     const seconds_per_hour: f64 = 3600.0;
     const seconds_per_minute: f64 = 60.0;
 
-    var info: c.struct_sysinfo = undefined;
-    if (c.sysinfo(&info) != 0) {
-        return error.SysinfoFailed;
-    }
+    const boot_seconds: f64 = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .boot).toSeconds()));
 
-    const uptime_seconds: f64 = @as(f64, @floatFromInt(info.uptime));
+    var remainig_seconds: f64 = boot_seconds;
 
-    var remainig_seconds: f64 = uptime_seconds;
     const days: f64 = @floor(remainig_seconds / seconds_per_day);
 
     remainig_seconds = (remainig_seconds / seconds_per_day) - days;
