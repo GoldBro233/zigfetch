@@ -1,7 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
-const c_sysinfo = @cImport(@cInclude("sys/sysinfo.h"));
-const c_utsname = @cImport(@cInclude("sys/utsname.h"));
+const c = @import("c");
 
 /// Struct representing system uptime in days, hours, and minutes.
 pub const SystemUptime = struct {
@@ -41,8 +40,8 @@ pub fn getSystemUptime() !SystemUptime {
     const seconds_per_hour: f64 = 3600.0;
     const seconds_per_minute: f64 = 60.0;
 
-    var info: c_sysinfo.struct_sysinfo = undefined;
-    if (c_sysinfo.sysinfo(&info) != 0) {
+    var info: c.struct_sysinfo = undefined;
+    if (c.sysinfo(&info) != 0) {
         return error.SysinfoFailed;
     }
 
@@ -65,8 +64,8 @@ pub fn getSystemUptime() !SystemUptime {
 }
 
 pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
-    var uts: c_utsname.struct_utsname = undefined;
-    if (c_utsname.uname(&uts) != 0) {
+    var uts: c.struct_utsname = undefined;
+    if (c.uname(&uts) != 0) {
         return error.UnameFailed;
     }
 

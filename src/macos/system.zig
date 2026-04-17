@@ -1,22 +1,6 @@
 const std = @import("std");
-const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-
-// ISSUE:
-// .zig-cache/o/452a3c886e051065cf00af7991fa6f5c/cimport.zig:1325:19: error: no size available for uninstantiable type 'cimport.mach_msg_type_descriptor_t'
-//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
-//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
-// .zig-cache/o/452a3c886e051065cf00af7991fa6f5c/cimport.zig:1323:40: note: opaque declared here
-// pub const mach_msg_type_descriptor_t = opaque {};
-//                                        ^~~~~~~~~
-// referenced by:
-//     c_libproc: src/macos/system.zig:3:19
-//     getWindowManagerInfo: src/macos/system.zig:173:36
-//     7 reference(s) hidden; use '-freference-trace=9' to see all references
-//
-
-// TODO: uncomment once the issue is fixed
-// const c_libproc = @cImport(@cInclude("libproc.h"));
 const c_libproc = @import("bindings/libproc.zig");
+const c = @import("c");
 
 /// Struct representing system uptime in days, hours, and minutes.
 pub const SystemUptime = struct {
@@ -62,8 +46,8 @@ pub fn getSystemUptime(io: std.Io) !SystemUptime {
 
     var uptime_seconds: f64 = 0.0;
 
-    var name = [_]c_int{ c_sysctl.CTL_KERN, c_sysctl.KERN_BOOTTIME };
-    if (c_sysctl.sysctl(&name, name.len, &boot_time, &size, null, 0) == 0) {
+    var name = [_]c_int{ c.CTL_KERN, c.KERN_BOOTTIME };
+    if (c.sysctl(&name, name.len, &boot_time, &size, null, 0) == 0) {
         const boot_seconds = @as(f64, @floatFromInt(boot_time.tv_sec));
         const now_seconds = @as(f64, @floatFromInt(std.Io.Timestamp.now(io, .real).toSeconds()));
         uptime_seconds = now_seconds - boot_seconds;
@@ -92,7 +76,7 @@ pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
 
     // --- KERNEL NAME ---
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.ostype", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.ostype", null, &size, null, 0) != 0) {
         return error.FailedToGetKernelNameSize;
     }
 
@@ -100,13 +84,13 @@ pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
     errdefer gpa.free(kernel_type);
 
     // Second call to sysctlbyname to get the kernel name
-    if (c_sysctl.sysctlbyname("kern.ostype", kernel_type.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.ostype", kernel_type.ptr, &size, null, 0) != 0) {
         return error.FailedToGetKernelName;
     }
 
     // --- KERNEL RELEASE ---
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.osrelease", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osrelease", null, &size, null, 0) != 0) {
         return error.FailedToGetKernelReleaseSize;
     }
 
@@ -114,7 +98,7 @@ pub fn getKernelInfo(gpa: std.mem.Allocator) !KernelInfo {
     errdefer gpa.free(os_release);
 
     // Second call to sysctlbyname to get the kernel release
-    if (c_sysctl.sysctlbyname("kern.osrelease", os_release.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osrelease", os_release.ptr, &size, null, 0) != 0) {
         return error.FailedToGetKernelRelease;
     }
 
@@ -128,7 +112,7 @@ pub fn getOsInfo(gpa: std.mem.Allocator) ![]u8 {
     var size: usize = 0;
 
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("kern.osproductversion", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osproductversion", null, &size, null, 0) != 0) {
         return error.FailedToGetCpuNameSize;
     }
 
@@ -136,7 +120,7 @@ pub fn getOsInfo(gpa: std.mem.Allocator) ![]u8 {
     defer gpa.free(os_version);
 
     // Second call to sysctlbyname to get the os version
-    if (c_sysctl.sysctlbyname("kern.osproductversion", os_version.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("kern.osproductversion", os_version.ptr, &size, null, 0) != 0) {
         return error.FailedToGetOsVersion;
     }
 
@@ -146,11 +130,11 @@ pub fn getOsInfo(gpa: std.mem.Allocator) ![]u8 {
 }
 
 pub fn getWindowManagerInfo(gpa: std.mem.Allocator) ![]const u8 {
-    var name = [_]c_int{ c_sysctl.CTL_KERN, c_sysctl.KERN_PROC, c_sysctl.KERN_PROC_ALL };
+    var name = [_]c_int{ c.CTL_KERN, c.KERN_PROC, c.KERN_PROC_ALL };
     var size: usize = 0;
 
     // First call to get the dimension
-    if (c_sysctl.sysctl(&name, name.len, null, &size, null, 0) != 0) {
+    if (c.sysctl(&name, name.len, null, &size, null, 0) != 0) {
         return error.SysctlFailed;
     }
 
@@ -158,16 +142,16 @@ pub fn getWindowManagerInfo(gpa: std.mem.Allocator) ![]const u8 {
     defer gpa.free(buffer);
 
     // Second call to retrieve process data
-    if (c_sysctl.sysctl(&name, name.len, buffer.ptr, &size, null, 0) != 0) {
+    if (c.sysctl(&name, name.len, buffer.ptr, &size, null, 0) != 0) {
         return error.SysctlFailed;
     }
 
     // Ensure the buffer size is valid
-    if (size % @sizeOf(c_sysctl.struct_kinfo_proc) != 0) {
+    if (size % @sizeOf(c.struct_kinfo_proc) != 0) {
         return error.InvalidBufferSize;
     }
 
-    const kinfo_list = std.mem.bytesAsSlice(c_sysctl.struct_kinfo_proc, buffer);
+    const kinfo_list = std.mem.bytesAsSlice(c.struct_kinfo_proc, buffer);
 
     var wm_name: ?[]const u8 = null;
 

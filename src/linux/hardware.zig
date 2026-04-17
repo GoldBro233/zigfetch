@@ -1,8 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
-const c_unistd = @cImport(@cInclude("unistd.h"));
-const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
-const c_libpci = @cImport(@cInclude("pci/pci.h"));
+const c = @import("c");
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
@@ -41,7 +39,7 @@ pub const DiskInfo = struct {
 };
 
 pub fn getCpuInfo(gpa: std.mem.Allocator, io: std.Io) !CpuInfo {
-    const cpu_cores = c_unistd.sysconf(c_unistd._SC_NPROCESSORS_ONLN);
+    const cpu_cores = c.sysconf(c._SC_NPROCESSORS_ONLN);
 
     // Reads /proc/cpuinfo
     const cpuinfo_path = "/proc/cpuinfo";
@@ -126,15 +124,15 @@ pub fn getGpuInfo(gpa: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
 
     const display_controller = 0x03;
 
-    const pacc = c_libpci.pci_alloc();
-    defer c_libpci.pci_cleanup(pacc);
-    c_libpci.pci_init(pacc);
-    c_libpci.pci_scan_bus(pacc);
+    const pacc = c.pci_alloc();
+    defer c.pci_cleanup(pacc);
+    c.pci_init(pacc);
+    c.pci_scan_bus(pacc);
 
     var devices = pacc.*.devices;
     while (devices != null) : (devices = devices.*.next) {
         // NOTE: for references: https://github.com/pciutils/pciutils/blob/3ec74c71c01878f92e751f15bb8febe720c3ab40/lib/access.c#L194
-        const known_fields = c_libpci.pci_fill_info(devices, c_libpci.PCI_FILL_IDENT | c_libpci.PCI_FILL_CLASS);
+        const known_fields = c.pci_fill_info(devices, c.PCI_FILL_IDENT | c.PCI_FILL_CLASS);
         if (known_fields <= 0) {
             return error.NoLibpciFieldsFound;
         }
@@ -142,11 +140,11 @@ pub fn getGpuInfo(gpa: std.mem.Allocator) !std.array_list.Managed(GpuInfo) {
         if ((devices.*.device_class >> 8) == display_controller) {
             var name_buffer: [256]u8 = undefined;
 
-            const name = c_libpci.pci_lookup_name(
+            const name = c.pci_lookup_name(
                 pacc,
                 &name_buffer,
                 name_buffer.len,
-                c_libpci.PCI_LOOKUP_VENDOR | c_libpci.PCI_LOOKUP_DEVICE,
+                c.PCI_LOOKUP_VENDOR | c.PCI_LOOKUP_DEVICE,
                 devices.*.vendor_id,
                 devices.*.device_id,
             );
@@ -343,8 +341,8 @@ pub fn getSwapInfo(gpa: std.mem.Allocator, io: std.Io) !?SwapInfo {
 }
 
 pub fn getDiskSize(disk_path: []const u8) !DiskInfo {
-    var stat: c_statvfs.struct_statvfs = undefined;
-    if (c_statvfs.statvfs(disk_path.ptr, &stat) != 0) {
+    var stat: c.struct_statvfs = undefined;
+    if (c.statvfs(disk_path.ptr, &stat) != 0) {
         return error.StatvfsFailed;
     }
 

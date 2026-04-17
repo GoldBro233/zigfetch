@@ -1,45 +1,9 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const c_sysctl = @cImport(@cInclude("sys/sysctl.h"));
-// NOTE: Until the ISSUE: https://codeberg.org/ziglang/translate-c/issues/289
-// is fixed, the bindings will be used
-// TODO: uncomment once the issue is fixed
-// const c_iokit = @cImport(@cInclude("IOKit/IOKitLib.h"));
-// const c_cf = @cImport(@cInclude("CoreFoundation/CoreFoundation.h"));
-
 const c_iokit = @import("bindings/iokit.zig");
-
-// ISSUE:
-// .zig-cache/o/848c774d02df656874fd6210833fe5d1/cimport.zig:5103:19: error: no size available for uninstantiable type 'cimport.mach_msg_type_descriptor_t'
-//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
-//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
-// .zig-cache/o/848c774d02df656874fd6210833fe5d1/cimport.zig:5101:40: note: opaque declared here
-// pub const mach_msg_type_descriptor_t = opaque {};
-//                                        ^~~~~~~~~
-// referenced by:
-//     c_cf: src/macos/hardware.zig:9:14
-//     getGpuInfo: src/macos/hardware.zig:268:55
-//     7 reference(s) hidden; use '-freference-trace=9' to see all references
 const c_cf = @import("bindings/corefoundation.zig");
-
-// ISSUE:
-// .zig-cache/o/43f41694a7f80dc84f91b83fee9f4b77/cimport.zig:319:19: error: no size available for uninstantiable type
-// 'cimport.ma
-// ch_msg_type_descriptor_t'
-//     if (!(@sizeOf(mach_msg_type_descriptor_t) == @as(c_ulong, 12))) @compileError("static assertion failed \"struct changed size unexpectedly\"");
-//                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
-// .zig-cache/o/43f41694a7f80dc84f91b83fee9f4b77/cimport.zig:317:40: note: opaque declared here
-// pub const mach_msg_type_descriptor_t = opaque {};
-//                                        ^~~~~~~~~
-// referenced by:
-//     c_mach: src/macos/hardware.zig:10:16
-//     getRamInfo: src/macos/hardware.zig:373:21
-//     7 reference(s) hidden; use '-freference-trace=9' to see all references
-
-// TODO: uncomment once the issue is fixed
-// const c_mach = @cImport(@cInclude("mach/mach.h"));
 const c_mach = @import("bindings/mach.zig");
-const c_statvfs = @cImport(@cInclude("sys/statvfs.h"));
+const c = @import("c");
 
 /// Struct representing CPU informations
 pub const CpuInfo = struct {
@@ -81,7 +45,7 @@ pub fn getCpuInfo(gpa: std.mem.Allocator) !CpuInfo {
     var size: usize = 0;
 
     // First call to sysctlbyname to get the size of the string
-    if (c_sysctl.sysctlbyname("machdep.cpu.brand_string", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("machdep.cpu.brand_string", null, &size, null, 0) != 0) {
         return error.FailedToGetCpuNameSize;
     }
 
@@ -89,14 +53,14 @@ pub fn getCpuInfo(gpa: std.mem.Allocator) !CpuInfo {
     errdefer gpa.free(cpu_name);
 
     // Second call to sysctlbyname to get the CPU name
-    if (c_sysctl.sysctlbyname("machdep.cpu.brand_string", cpu_name.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("machdep.cpu.brand_string", cpu_name.ptr, &size, null, 0) != 0) {
         return error.FailedToGetCpuName;
     }
 
     // Call to sysctlbyname to get the cpu cores
     var n_cpu: i32 = 0;
     size = @sizeOf(i32);
-    if (c_sysctl.sysctlbyname("hw.ncpu", &n_cpu, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.ncpu", &n_cpu, &size, null, 0) != 0) {
         return error.FailedToGetPhysicalCpuInfo;
     }
 
@@ -120,13 +84,13 @@ pub fn getCpuInfo(gpa: std.mem.Allocator) !CpuInfo {
 fn getCpuArch(gpa: std.mem.Allocator) ![]u8 {
     var size: usize = 0;
 
-    if (c_sysctl.sysctlbyname("hw.machine", null, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.machine", null, &size, null, 0) != 0) {
         return error.SysctlbynameFailed;
     }
 
     const machine: []u8 = try gpa.alloc(u8, size);
 
-    if (c_sysctl.sysctlbyname("hw.machine", machine.ptr, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.machine", machine.ptr, &size, null, 0) != 0) {
         return error.SysctlbynameFailed;
     }
 
@@ -213,7 +177,7 @@ pub fn getCpuFreqIntel() f64 {
     var freq: f64 = 0;
     var size: usize = @sizeOf(f64);
 
-    if (c_sysctl.sysctlbyname("hw.cpufrequency_max", &freq, &size, null, 0) != 0) {
+    if (c.sysctlbyname("hw.cpufrequency_max", &freq, &size, null, 0) != 0) {
         return 0.0;
     }
 
@@ -392,8 +356,8 @@ pub fn getRamInfo() !RamInfo {
     // -- RAM SIZE --
     var ram_size: u64 = 0;
     var ram_size_len: usize = @sizeOf(u64);
-    var name = [_]c_int{ c_sysctl.CTL_HW, c_sysctl.HW_MEMSIZE };
-    if (c_sysctl.sysctl(&name, name.len, &ram_size, &ram_size_len, null, 0) != 0) {
+    var name = [_]c_int{ c.CTL_HW, c.HW_MEMSIZE };
+    if (c.sysctl(&name, name.len, &ram_size, &ram_size_len, null, 0) != 0) {
         return error.FailedToGetRamSize;
     }
 
@@ -427,10 +391,10 @@ pub fn getRamInfo() !RamInfo {
 }
 
 pub fn getSwapInfo() !?SwapInfo {
-    var swap: c_sysctl.struct_xsw_usage = undefined;
-    var size: usize = @sizeOf(c_sysctl.struct_xsw_usage);
+    var swap: c.struct_xsw_usage = undefined;
+    var size: usize = @sizeOf(c.struct_xsw_usage);
 
-    if (c_sysctl.sysctlbyname("vm.swapusage", &swap, &size, null, 0) != 0) {
+    if (c.sysctlbyname("vm.swapusage", &swap, &size, null, 0) != 0) {
         return error.FailedToGetSwapInfo;
     }
 
@@ -451,8 +415,8 @@ pub fn getSwapInfo() !?SwapInfo {
 }
 
 pub fn getDiskSize(disk_path: []const u8) !DiskInfo {
-    var stat: c_statvfs.struct_statvfs = undefined;
-    if (c_statvfs.statvfs(disk_path.ptr, &stat) != 0) {
+    var stat: c.struct_statvfs = undefined;
+    if (c.statvfs(disk_path.ptr, &stat) != 0) {
         return error.StatvfsFailed;
     }
 
