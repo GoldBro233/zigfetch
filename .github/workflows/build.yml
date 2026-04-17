@@ -96,5 +96,5 @@ jobs:
 
       - name: Run tests
         run: |
-          zig test src/ascii.zig
+          zig test src/display.zig
           zig test src/utils.zig
