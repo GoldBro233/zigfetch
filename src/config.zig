@@ -8,8 +8,15 @@ pub const Module = struct {
     key_color: []u8,
 };
 
+pub const Image = struct {
+    abs_path: []const u8,
+    height: ?u8 = null,
+    width: ?u8 = null,
+};
+
 pub const Config = struct {
     ascii_abs_path: ?[]u8 = null,
+    images: ?[]Image = null,
     username_hostname_color: ?[]u8 = null,
     modules: []Module,
 };
@@ -35,6 +42,12 @@ pub const ModuleType = enum {
 pub fn getAsciiPath(config: ?std.json.Parsed(Config)) ?[]u8 {
     if (config) |c| {
         return c.value.ascii_abs_path;
+    } else return null;
+}
+
+pub fn getImages(config: ?std.json.Parsed(Config)) ?[]Image {
+    if (config) |c| {
+        return c.value.images;
     } else return null;
 }
 
