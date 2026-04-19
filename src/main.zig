@@ -78,6 +78,24 @@ pub fn main(init: std.process.Init) !void {
         }
     }
 
-    // TODO: return the formatted ascii and modules to print instead of directly print them
-    try display.printAsciiAndModules(allocator, io, config.getAsciiPath(conf), modules_list);
+    // If both the `images` and `ascii_abs_path` fields are specified, the images are prioritized
+    if (config.getImages(conf)) |images| {
+        if (images.len != 0) {
+            try display.printImageAndModules(
+                allocator,
+                io,
+                modules_list,
+                images,
+            );
+        } else {
+            return error.NoImagesInTheArray;
+        }
+    } else {
+        try display.printAsciiAndModules(
+            allocator,
+            io,
+            config.getAsciiPath(conf),
+            modules_list,
+        );
+    }
 }
