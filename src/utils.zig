@@ -139,3 +139,14 @@ pub fn countEntries(io: std.Io, dir_path: []const u8) !usize {
 
     return count;
 }
+
+/// Checks whether the file is a PNG image by inspecting its magic bytes.
+pub fn isFilePng(gpa: std.mem.Allocator, io: std.Io, file_path: []const u8) !bool {
+    const png_magic = [8]u8{ 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+    const file = try std.Io.Dir.openFileAbsolute(io, file_path, .{ .mode = .read_only });
+    const content = try readFile(gpa, io, file, 8);
+    defer gpa.free(content);
+
+    return std.mem.eql(u8, content, &png_magic);
+}
