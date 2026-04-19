@@ -106,20 +106,20 @@ pub fn printAsciiAndModules(gpa: std.mem.Allocator, io: std.Io, ascii_art_path: 
 
     const can_print_ascii_art: bool = terminal_width > longest_ascii_art_row_len + longest_sys_info_string_len + spacing;
 
-    const ascii_art_len: usize = ascii_art_items.len;
+    const ascii_art_rows: usize = ascii_art_items.len;
     const sys_info_len: usize = sys_info_items.len;
 
     // NOTE: sys_info_len + 3 to be able to print the colors
-    const max_len: usize = if ((ascii_art_len > sys_info_len) and can_print_ascii_art) ascii_art_len else sys_info_len + 3;
+    const max_len: usize = if ((ascii_art_rows > sys_info_len) and can_print_ascii_art) ascii_art_rows else sys_info_len + 3;
 
     var i: usize = 0;
     while (i < max_len) : (i += 1) {
         // Print the ascii art if the width of the terminal is greater than the spacing (5) + the longest ascii art row length + the longest sys info string length
         if (can_print_ascii_art) {
-            const alignment_buffer = try gpa.alloc(u8, if (i < ascii_art_len) longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing else longest_ascii_art_row_len + spacing);
+            const alignment_buffer = try gpa.alloc(u8, if (i < ascii_art_rows) longest_ascii_art_row_len - (try utils.countCodepoints(ascii_art_items[i])) + spacing else longest_ascii_art_row_len + spacing);
             @memset(alignment_buffer, ' ');
 
-            if (i < ascii_art_len) {
+            if (i < ascii_art_rows) {
                 try stdout.print("{s}{s}", .{ ascii_art_items[i], alignment_buffer });
             } else {
                 try stdout.print("{s}", .{alignment_buffer});
