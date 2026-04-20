@@ -173,6 +173,35 @@ To use an ASCII art of your choice:
 
 Don't use the `~` character.
 
+#### Images
+
+>[!IMPORTANT]
+> Only PNG images are supported.
+
+To use images:
+
+```json
+"images": [
+    {
+      "abs_path": "absolute_path/to/your/image.png",
+      "height": 25,
+      "width": 35
+    },
+    {
+      "abs_path": "absolute_path/to/your/image2.png",
+      "height": 30,
+      "width": 35
+    }
+]
+```
+
+Don't use the `~` character.
+
+If multiple images are specified, one will be selected pseudo-randomly.
+
+> [!NOTE]
+> If both the `images` and `ascii_abs_path` fields are specified, the images are prioritized.
+
 #### Username and Hostname color
 
 To change the Username and Hostname color (HEX colors only):
